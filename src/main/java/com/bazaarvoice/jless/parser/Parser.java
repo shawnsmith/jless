@@ -890,8 +890,16 @@ public class Parser extends BaseParser<Node> {
         return Sequence(
                 Multiplication(),
                 ZeroOrMore(
-                        AnyOf("-+"), op.set(matchedChar()),
-                        FirstOf(Spacing(), TestNot(new LookBehindCharMatcher(' '))),
+                        FirstOf(
+                                Sequence(
+                                        AnyOf("-+"), op.set(matchedChar()),
+                                        Spacing()
+                                ),
+                                Sequence(
+                                        TestNot(new LookBehindCharMatcher(' ')),
+                                        AnyOf("-+"), op.set(matchedChar())
+                                )
+                        ),
                         Multiplication(),
                         swap(), push(new Operation(op.get(), pop(), pop()))
                 )

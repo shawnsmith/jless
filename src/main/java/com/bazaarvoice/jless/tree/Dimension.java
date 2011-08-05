@@ -16,7 +16,7 @@ public class Dimension extends Node {
 
     public Dimension(double value, String unit) {
         _value = value;
-        _unit = unit;
+        _unit = unit != null ? unit : "";
     }
 
 /*
@@ -28,7 +28,11 @@ public class Dimension extends Node {
 
     @Override
     public String toString() {
-        return _value + _unit;
+        String string = Double.toString(_value);
+        if (string.endsWith(".0")) {
+            string = string.substring(0, string.length() - 2);
+        }
+        return string + _unit;
     }
 
     @Override

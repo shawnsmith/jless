@@ -20,8 +20,8 @@ public class RuleTests {
         accept(_parser.EntitiesCall(), "%()");
         reject(_parser.EntitiesCall(), "url(image.gif)");
         accept(_parser.EntitiesCall(), "alpha(opacity=1)");
-        accept(_parser.EntitiesCall(), "alpha(opacity=88 )");
-        reject(_parser.EntitiesCall(), "alpha(opacity=1.0)");
+        accept(_parser.EntitiesCall(), "alpha(opacity=88.9 )");
+        reject(_parser.EntitiesCall(), "alpha(opacity=xyz)");
         accept(_parser.EntitiesCall(), "alpha(opacity=@opacity)");
         accept(_parser.EntitiesCall(), "local(Futura-Medium)");
         accept(_parser.EntitiesCall(), "progid:DXImageTransform.Microsoft.gradient(startColorstr=@lightColor, endColorstr=@darkColor)");
