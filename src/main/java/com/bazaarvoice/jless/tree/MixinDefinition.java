@@ -37,7 +37,7 @@ public class MixinDefinition extends Node {
 
     @Override
     public String toString() {
-        return _name + " " + "(" + StringUtils.join(_parameters, ", ") + ") {" + _rules + "}";
+        return _name + " " + "(" + StringUtils.join(_parameters, ", ") + ") " + _rules;
     }
 
     @Override

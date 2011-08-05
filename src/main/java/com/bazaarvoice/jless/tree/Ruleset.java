@@ -1,7 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
 import com.bazaarvoice.jless.parser.DebugPrinter;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
 
@@ -16,7 +15,16 @@ public class Ruleset extends Node {
 
     @Override
     public String toString() {
-        return StringUtils.join(_selectors, ", ") + " { " + _rules + " }\n";
+        StringBuilder buf = new StringBuilder();
+        for (int i = 0; i < _selectors.size(); i++) {
+            if (i > 0) {
+                buf.append(", ");
+            }
+            buf.append(_selectors.get(0).toString().trim());
+        }
+        buf.append(' ');
+        buf.append(_rules);
+        return buf.toString();
     }
 
     @Override

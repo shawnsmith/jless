@@ -25,7 +25,7 @@ public class Directive extends Node {
     @Override
     public String toString() {
         if (_ruleset != null) {
-            return _name + " { " + _ruleset + " } ";
+            return _name + " " + _ruleset;
         } else {
             return _name + " " + _value + ";";
         }

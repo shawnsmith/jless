@@ -82,7 +82,7 @@ public class Parser extends BaseParser<Node> {
     // ********** Document **********
 
     public Rule Document() {
-        return Sequence(Primary(), EOI);
+        return Sequence(Primary(true), EOI);
     }
 
     //
@@ -100,7 +100,7 @@ public class Parser extends BaseParser<Node> {
     // Only at one point is the primary rule not called from the
     // block rule: at the root level.
     //
-    Rule Primary() {
+    Rule Primary(boolean root) {
         Var<List<Node>> statements = new Var<List<Node>>();
         return Sequence(
                 statements.set(new ArrayList<Node>()),
@@ -119,7 +119,7 @@ public class Parser extends BaseParser<Node> {
                                 Spacing()
                         )
                 ),
-                push(new Block(statements.get()))
+                push(new Block(root, statements.get()))
             );
     }
 
@@ -694,7 +694,7 @@ public class Parser extends BaseParser<Node> {
     Rule Block() {
         return Sequence(
                 Terminal('{'),
-                Primary(),
+                Primary(false),
                 Terminal('}')
         );
     }
