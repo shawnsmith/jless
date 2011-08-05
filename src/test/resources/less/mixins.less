@@ -13,21 +13,23 @@
     }
   }
 }
-.mixin { border: 1px solid red; }
-
-#theme > .mixin {
-  background-color: grey;
+#theme {
+  > .mixin {
+    background-color: grey;
+  }
 }
 #container {
   color: black;
-  .mixin, .mixout;
+  .mixin;
+  .mixout;
   #theme > .mixin;
 }
 
 #header {
   .milk {
     color: white;
-    .mixin, #theme > .mixin;
+    .mixin;
+    #theme > .mixin;
   }
   #cookie {
     .chips {

@@ -14,40 +14,45 @@
  * limitations under the License.
  *
  * @author J. Ryan Stinnett (ryan.stinnett@bazaarvoice.com)
+ * @author Shawn Smith (shawn.smith@bazaarvoice.com)
  */
 
 package com.bazaarvoice.jless.parser;
 
-import com.bazaarvoice.jless.ast.node.ArgumentsNode;
-import com.bazaarvoice.jless.ast.node.ExpressionGroupNode;
-import com.bazaarvoice.jless.ast.node.ExpressionNode;
-import com.bazaarvoice.jless.ast.node.ExpressionPhraseNode;
-import com.bazaarvoice.jless.ast.node.FilterArgumentNode;
-import com.bazaarvoice.jless.ast.node.FunctionNode;
-import com.bazaarvoice.jless.ast.node.InternalNode;
-import com.bazaarvoice.jless.ast.node.LineBreakNode;
-import com.bazaarvoice.jless.ast.node.Node;
-import com.bazaarvoice.jless.ast.node.ParametersNode;
-import com.bazaarvoice.jless.ast.node.PlaceholderNode;
-import com.bazaarvoice.jless.ast.node.PropertyNode;
-import com.bazaarvoice.jless.ast.node.RuleSetNode;
-import com.bazaarvoice.jless.ast.node.ScopeNode;
-import com.bazaarvoice.jless.ast.node.SelectorGroupNode;
-import com.bazaarvoice.jless.ast.node.SelectorNode;
-import com.bazaarvoice.jless.ast.node.SelectorSegmentNode;
-import com.bazaarvoice.jless.ast.node.SimpleNode;
-import com.bazaarvoice.jless.ast.node.SpacingNode;
-import com.bazaarvoice.jless.ast.node.VariableDefinitionNode;
-import com.bazaarvoice.jless.ast.node.VariableReferenceNode;
-import com.bazaarvoice.jless.ast.node.WhiteSpaceCollectionNode;
-import com.bazaarvoice.jless.ast.util.NodeTreeUtils;
-import com.bazaarvoice.jless.exception.UndefinedMixinException;
-import com.bazaarvoice.jless.exception.UndefinedVariableException;
+import com.bazaarvoice.jless.tree.Alpha;
+import com.bazaarvoice.jless.tree.Node;
+import com.bazaarvoice.jless.tree.Anonymous;
+import com.bazaarvoice.jless.tree.Block;
+import com.bazaarvoice.jless.tree.Call;
+import com.bazaarvoice.jless.tree.Color;
+import com.bazaarvoice.jless.tree.Comment;
+import com.bazaarvoice.jless.tree.DataUri;
+import com.bazaarvoice.jless.tree.Dimension;
+import com.bazaarvoice.jless.tree.Directive;
+import com.bazaarvoice.jless.tree.Element;
+import com.bazaarvoice.jless.tree.Expression;
+import com.bazaarvoice.jless.tree.ImportFile;
+import com.bazaarvoice.jless.tree.Keyword;
+import com.bazaarvoice.jless.tree.MixinCall;
+import com.bazaarvoice.jless.tree.MixinDefinition;
+import com.bazaarvoice.jless.tree.MixinDefinitionParameter;
+import com.bazaarvoice.jless.tree.Operation;
+import com.bazaarvoice.jless.tree.Progid;
+import com.bazaarvoice.jless.tree.Quoted;
+import com.bazaarvoice.jless.tree.Ruleset;
+import com.bazaarvoice.jless.tree.Selector;
+import com.bazaarvoice.jless.tree.Shorthand;
+import com.bazaarvoice.jless.tree.Url;
+import com.bazaarvoice.jless.tree.Value;
+import com.bazaarvoice.jless.tree.Variable;
 import org.parboiled.BaseParser;
-import org.parboiled.Context;
 import org.parboiled.Rule;
-import org.parboiled.annotations.MemoMismatches;
 import org.parboiled.support.Var;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Initially transcribed into Parboiled from the
@@ -71,798 +76,1042 @@ import org.parboiled.support.Var;
  *
  * @see com.bazaarvoice.jless.LessProcessor
  */
+@SuppressWarnings( {"InfiniteRecursion"})
 public class Parser extends BaseParser<Node> {
-
-    private boolean _parserTranslationEnabled;
-
-    public Parser() {
-        this(true);
-    }
-
-    public Parser(Boolean parserTranslationEnabled) {
-        _parserTranslationEnabled = parserTranslationEnabled;
-    }
-
-    protected boolean isParserTranslationEnabled() {
-        return _parserTranslationEnabled;
-    }
 
     // ********** Document **********
 
     public Rule Document() {
-        return Sequence(Scope(), EOI);
+        return Sequence(Primary(), EOI);
     }
 
-    /**
-     * This is the high-level rule at some scope (either the root document or within a rule set / mixin).
-     * Future: Imports
-     */
-    Rule Scope() {
+    //
+    // The `primary` rule is the *entry* and *exit* point of the parser.
+    // The rules here can appear at any level of the parse tree.
+    //
+    // The recursive nature of the grammar is an interplay between the `block`
+    // rule, which represents `{ ... }`, the `ruleset` rule, and this `primary` rule,
+    // as represented by this simplified grammar:
+    //
+    //     primary  →  (ruleset | rule)+
+    //     ruleset  →  selector+ block
+    //     block    →  '{' primary '}'
+    //
+    // Only at one point is the primary rule not called from the
+    // block rule: at the root level.
+    //
+    Rule Primary() {
+        Var<List<Node>> statements = new Var<List<Node>>();
         return Sequence(
-                push(new ScopeNode()),
+                statements.set(new ArrayList<Node>()),
                 ZeroOrMore(
                         FirstOf(
-                                Declaration(),
-                                RuleSet(),
-                                MixinReference(),
-                                Sequence(push(new WhiteSpaceCollectionNode()), Sp1Nodes())
-                        ),
-                        peek(1).addChild(pop())
-                )
-        );
-    }
-
-    // ********** CSS Rule Sets & Mixins **********
-
-    /**
-     * (Selectors '{' Ws0 / Class Ws0 Parameters Ws0 '{' Ws0) Scope Ws0 '}' Ws0
-     *
-     * Ex: div, .class, body > p {...}
-     *
-     * Future: Hidden
-     */
-    Rule RuleSet() {
-        return Sequence(
-                FirstOf(
-                        // Standard CSS rule set
-                        Sequence(
-                                SelectorGroup(), push(new RuleSetNode(pop())),
-                                '{',
-                                Scope(), peek(1).addChild(pop()), Ws0()
-                        ),
-                        // Mixin rule set, with possible arguments
-                        Sequence(
-                                ClassSelectorGroup(), push(new RuleSetNode(pop())), Ws0(),
-                                Parameters(), Ws0(),
-                                '{',
-                                Scope(), peek(1).addChild(pop()), peek(1).addChild(pop()), Ws0()
+                                Sequence(
+                                    FirstOf(
+                                        MixinDefinition(),
+                                        Rule(),
+                                        Ruleset(),
+                                        MixinCall(),
+                                        Comment(),
+                                        Directive()
+                                    ), add(statements, pop())
+                                ),
+                                Spacing()
                         )
                 ),
-                '}', Ws0Nodes()
-        );
+                push(new Block(statements.get()))
+            );
     }
 
-    /**
-     * '(' Parameter Ws0 (',' Ws0 Parameter)* ')'
-     */
-    Rule Parameters() {
+    // We create a Comment node for CSS comments `/* */`,
+    // but keep the LeSS comments `//` silent, by just skipping
+    // over them.
+    Rule Comment() {
         return Sequence(
-                '(',
-                Parameter(), push(new ParametersNode(pop())), Ws0(),
-                ZeroOrMore(
-                        ',', Ws0(),
-                        Parameter(), peek(1).addChild(pop())
+                Test('/'),  // for performance
+                FirstOf(
+                        // single line comment: '//' (!LB .)* LB Ws0
+                        Sequence(
+                                // javascript regular expression: /^\/\/.*/
+                                Sequence("//", ZeroOrMore(TestNotEOL(), ANY), FirstOf('\n', "\r\n", '\r', EOI)),
+                                push(new Comment(match(), true))
+                        ),
+                        // multiline comment: '/*' (!'*\/' .)* '*\/' Ws0
+                        Sequence(
+                                // javascript regular expression:   /^\/\*(?:[^*]|\*+[^\/*])*\*+\/\n?/
+                                // note: css spec uses this regex:  /^\/\*[^*]*\*+([^/*][^*]*\*+)*\//
+                                Sequence("/*", ZeroOrMore(TestNot("*/"), ANY), "*/"),
+                                push(new Comment(match(), false))
+                        )
                 ),
-                ')',
-                push(new ScopeNode(pop()))
+                OptionalSpacing()
         );
     }
 
-    /**
-     * Variable Ws0 ':' Ws0 ExpressionPhrase
-     */
-    Rule Parameter() {
+    //
+    // A string, which supports escaping " and '
+    //
+    //     "milky way" 'he\'s the one!'
+    //
+    Rule EntitiesQuoted() {
+        Var<Boolean> escaped = new Var<Boolean>(false);
         return Sequence(
-                Variable(), push(new VariableDefinitionNode(match())), peek().setVisible(!isParserTranslationEnabled()), Ws0(),
-                ':', Ws0(),
-                ExpressionPhrase(), peek(1).addChild(new ExpressionGroupNode(pop()))
+                Optional('~', escaped.set(true)),
+                CssString(),
+                push(new Quoted(match(), escaped.get())),
+                OptionalSpacing()
         );
     }
 
-    /**
-     * SelectorGroup ';' Ws0
-     * / Class Arguments ';' Ws0
-     */
-    @MemoMismatches
-    Rule MixinReference() {
+    //
+    // A catch-all word, such as:
+    //
+    //     black border-collapse
+    //
+    Rule EntitiesKeyword() {
+        // javascript regular expression: /^[A-Za-z-]+/
+        return Sequence(
+                CssIdent(),
+                push(new Keyword(match())),
+                OptionalSpacing()
+        );
+    }
+
+    //
+    // A function call
+    //
+    //     rgb(255, 0, 255)
+    //
+    // We also try to catch IE's `alpha()`, but let the `alpha` parser
+    // deal with the details.
+    //
+    // The arguments are parsed with the `entities.arguments` parser.
+    //
+    Rule EntitiesCall() {
         Var<String> name = new Var<String>();
-        return FirstOf(
-                // No arguments, reference an existing rule set's properties
-                Sequence(
-                        SelectorGroup(), ';',
-                        resolveMixinReference(NodeTreeUtils.getFirstChild((InternalNode) pop(), SelectorNode.class).toString(), null),
-                        Ws0Nodes()
-                ),
-                // Call a mixin, passing along some arguments
-                Sequence(
-                        Class(), name.set(match()), Arguments(), Ws0(), ';',
-                        resolveMixinReference(name.get(), (ArgumentsNode) pop()),
-                        Ws0Nodes()
-                )
-        );
-    }
-
-    // ********** CSS Selectors **********
-
-    /**
-     * Selector Ws0 (',' Ws0 Selector)* Ws0
-     */
-    @MemoMismatches
-    Rule SelectorGroup() {
+        Var<List<Expression>> arguments = new Var<List<Expression>>();
         return Sequence(
-                Selector(), push(new SelectorGroupNode(pop())), Ws0Nodes(),
-                ZeroOrMore(
-                        ',', Ws0Nodes(),
-                        Selector(), peek(1).addChild(pop())
-                ),
-                Ws0Nodes()
-        );
-    }
-
-    /**
-     * Special case rule that builds a selector for only a single class
-     */
-    Rule ClassSelectorGroup() {
-        return Sequence(
-                Class(),
-                push(new SelectorGroupNode(new SelectorNode(new SelectorSegmentNode("", match()))))
-        );
-    }
-
-    /**
-     * SimpleSelector (Combinator SimpleSelector)*
-     */
-    Rule Selector() {
-        Var<SelectorSegmentNode> selectorSegmentNode = new Var<SelectorSegmentNode>();
-        return Sequence(
-                push(new SelectorNode()),
-                // First selector segment may have a combinator (with nested rule sets)
-                Optional(SymbolCombinator()),
-                selectorSegmentNode.set(new SelectorSegmentNode(match())),
-                SimpleSelector(selectorSegmentNode),
-                selectorSegmentNode.get().setSimpleSelector(match()),
-                peek().addChild(selectorSegmentNode.getAndClear()),
-                // Additional selector segments must have a combinator
-                ZeroOrMore(
-                        Combinator(),
-                        selectorSegmentNode.set(new SelectorSegmentNode(match())),
-                        SimpleSelector(selectorSegmentNode),
-                        selectorSegmentNode.get().setSimpleSelector(match()),
-                        peek().addChild(selectorSegmentNode.getAndClear())
-                )
-        );
-    }
-
-    /**
-     * Ws0 [+>~] Ws0 / Ws1
-     */
-    Rule Combinator() {
-        return FirstOf(
-                Sequence(Ws0(), SymbolCombinator()),
-                DescendantCombinator()
-        );
-    }
-
-    Rule SymbolCombinator() {
-        return Sequence(AnyOf("+>~"), Ws0());
-    }
-
-    Rule DescendantCombinator() {
-        return Ws1();
-    }
-
-    Rule SimpleSelector(Var<SelectorSegmentNode> selectorSegmentNode) {
-        return FirstOf(
-                Sequence(
-                        FirstOf(
-                                ID(), Class(), Attribute(), Negation(), ElementName(),
-                                Sequence(
-                                        FirstOf(
-                                                UniversalHtml(),
-                                                Universal()
-                                        ),
-                                        selectorSegmentNode.get().setUniversal(true)
+                // javascript regular expression: /^([\w-]+|%)\(/
+                FirstOf(
+                        Sequence("progid:", OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-."))),
+                        CssIdent(),
+                        '%'
+                ), name.set(match()),
+                !"url".equalsIgnoreCase(name.get()),
+                FirstOf(
+                        Sequence(
+                                "alpha".equals(name.get()),
+                                IEAlpha()
+                        ),
+                        Sequence(
+                                "expression".equals(name.get()),
+                                IEExpression()
+                        ),
+                        Sequence(
+                                name.get().startsWith("progid:"),
+                                IEProgId(name)
+                        ),
+                        Sequence(
+                                !"alpha".equals(name.get()) &&
+                                        !"expression".equals(name.get()) &&
+                                        !name.get().startsWith("progid:"),
+                                arguments.set(new ArrayList<Expression>()),
+                                Terminal('('),
+                                Optional(
+                                        Expression(), add(arguments, (Expression) pop()),
+                                        ZeroOrMore(
+                                                Terminal(','),
+                                                Expression(), add(arguments, (Expression) pop())
+                                        )
                                 ),
-                                Sequence(
-                                        Pseudo(),
-                                        selectorSegmentNode.get().setSubElementSelector(true)
+                                Terminal(')'),
+                                push(new Call(name.get(), arguments.get()))
+                        )
+                )
+        );
+    }
+
+    Rule EntitiesLiteral() {
+        return FirstOf(
+                EntitiesDimension(),
+                EntitiesColor(),
+                EntitiesQuoted()
+        );
+    }
+
+    //
+    // Parse url() tokens
+    //
+    // We use a specific rule for urls, because they don't really behave like
+    // standard function calls. The difference is that the argument doesn't have
+    // to be enclosed within a string, so it can't be parsed as an Expression.
+    //
+    Rule EntitiesUrl() {
+        return Sequence(
+                Terminal("url("),
+                FirstOf(
+                        EntitiesQuoted(),
+                        EntitiesVariable(),
+                        EntitiesDataUri(),
+                        Sequence(
+                                // javascript regular expression: /^[-\w%@$\/.&=:;#+?~]+/
+                                OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-%@$/.&=:;#+?~")),
+                                push(new Anonymous(match())),
+                                OptionalSpacing()
+                        )
+                ),
+                Terminal(')'),
+                push(new Url(pop()))
+        );
+    }
+
+    Rule EntitiesDataUri() {
+        // note: this grammar won't strip comments/compress whitespace w/in data uri values
+        Var<String> mime = new Var<String>();
+        Var<String> charset = new Var<String>();
+        Var<String> encoding = new Var<String>();
+        Var<String> data = new Var<String>();
+        return Sequence(
+                Terminal("data:"),
+                // javascript regular expression: /^[^\/]+\/[^,;)]+/
+                Optional(OneOrMore(TestNot('/'), ANY), '/', OneOrMore(TestNot(AnyOf(",;)")), ANY)), mime.set(match()),
+                // javascript regular expression: /^;\s*charset=[^,;)]+/
+                Optional(';', OptionalSpacing(), "charset=", OneOrMore(TestNot(AnyOf(",;)")), ANY)), charset.set(match()),
+                // javascript regular expression: /^;\s*base64/
+                Optional(';', OptionalSpacing(), "base64", OptionalSpacing()), encoding.set(match()),
+                // javascript regular expression: /^,\s*[^)]+/
+                Sequence(',', OptionalSpacing(), OneOrMore(TestNot(')'), ANY)), data.set(match()),
+                push(new DataUri(mime.get(), charset.get(), encoding.get(), data.get()))
+        );
+    }
+
+    // A Variable entity, such as `@fink`, in
+    //
+    //     width: @fink + 2px
+    //
+    // We use a different parser for variable definitions,
+    // see `parsers.variable`.
+    //
+    Rule EntitiesVariable() {
+        return Sequence(
+                // javascript regular expression: /^@@?[\w-]+/
+                Sequence('@', Optional('@'), WordOrDashChars()),
+                push(new Variable(match())),
+                OptionalSpacing()
+        );
+    }
+
+    //
+    // A Hexadecimal color
+    //
+    //     #4F3C2F
+    //
+    // `rgb` and `hsl` colors are parsed through the `entities.call` parser.
+    //
+    Rule EntitiesColor() {
+        return Sequence(
+                // javascript regular expression: /^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})/
+                '#',
+                Sequence(HexChar(), HexChar(), HexChar(), Optional(HexChar(), HexChar(), HexChar())),
+                push(new Color(match())),
+                OptionalSpacing()
+        );
+    }
+
+    //
+    // A Dimension, that is, a number and a unit
+    //
+    //     0.5em 95%
+    //
+    Rule EntitiesDimension() {
+        Var<String> number = new Var<String>();
+        Var<String> unit = new Var<String>();
+        return Sequence(
+                // javascript regular expression: /^(-?\d*\.?\d+)(px|%|em|pc|ex|in|deg|s|ms|pt|cm|mm|rad|grad|turn)?/
+                Sequence(Optional('-'), CssNum()), number.set(match()),
+                Optional(
+                        FirstOf(
+                                "px", "%", "em", "pc", "ex", "in", "deg", "s", "ms", "pt", "cm", "mm", "rad", "grad", "turn"
+                        )
+                ), unit.set(match()),
+                push(new Dimension(number.get(), unit.get())),
+                OptionalSpacing()
+        );
+    }
+
+    //
+    // JavaScript code to be evaluated
+    //
+    //     `window.location.href`
+    //
+    Rule EntitiesJavaScript() {
+        // note: JavaScript isn't supported
+        return Sequence(
+                Sequence(
+                        Optional(Terminal('~')),
+                        // javascript regular expression: /^`([^`]*)`/
+                        '`', ZeroOrMore(Sequence(TestNot('`'), ANY)), '`'
+                ),
+                push(new Anonymous(match())),
+                OptionalSpacing()
+        );
+    }
+
+    //
+    // The variable part of a variable definition. Used in the `rule` parser
+    //
+    //     @fink:
+    //
+    Rule Variable() {
+        return Sequence(
+                // javascript regular expression: /^(@[\w-]+)\s*:/
+                Sequence('@', WordOrDashChars()),
+                push(new Variable(match())),
+                OptionalSpacing(),
+                Terminal(':')
+        );
+    }
+
+    //
+    // A font size/line-height shorthand
+    //
+    //     small/12px
+    //
+    // We need to peek first, or we'll match on keywords and dimensions
+    //
+    Rule Shorthand() {
+        return Sequence(
+                // javascript regular expression: /^[\w@.%-]+\/[\w@.-]+/
+                Test(
+                        OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@.%-")),
+                        '/',
+                        AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_@.-")
+                ),
+                Entity(),
+                Terminal('/'),
+                Entity(),
+                swap(), push(new Shorthand(pop(), pop()))
+        );
+    }
+
+    //
+    // A Mixin call, with an optional argument list
+    //
+    //     #mixins > .square(#fff);
+    //     .rounded(4px, black);
+    //     .button;
+    //
+    // The `while` loop is there because mixins can be
+    // namespaced, but we only support the child and descendant
+    // selector for now.
+    //
+    Rule MixinCall() {
+        Var<String> combinator = new Var<String>();
+        Var<List<Element>> elements = new Var<List<Element>>();
+        Var<List<Expression>> arguments = new Var<List<Expression>>();
+        return Sequence(
+                elements.set(new ArrayList<Element>()),
+                OneOrMore(
+                        // javascript regular expression: /^[#.](?:[\w-]|\\(?:[a-fA-F0-9]{1,6} ?|[^a-fA-F0-9]))+/
+                        Sequence(
+                                Sequence(AnyOf(".#"), CssIdent()),
+                                add(elements, new Element(combinator.get(), match())),
+                                OptionalSpacing()
+                        ),
+                        Optional(Terminal('>')), combinator.set(match())
+                ),
+                arguments.set(new ArrayList<Expression>()),
+                Optional(
+                        Terminal('('),
+                        Optional(
+                                Expression(), add(arguments, (Expression) pop()),
+                                ZeroOrMore(
+                                        Terminal(','),
+                                        Expression(), add(arguments, (Expression) pop())
                                 )
                         ),
-                        ZeroOrMore(FirstOf(ID(), Class(), Attribute(), Negation(), Pseudo()))
+                        Terminal(')')
                 ),
-                "@media",
-                "@font-face"
+                FirstOf(Terminal(';'), Test('}')),
+                push(new MixinCall(elements.get(), arguments.get()))
+        );
+    }
+
+    //
+    // A Mixin definition, with a list of parameters
+    //
+    //     .rounded (@radius: 2px, @color) {
+    //        ...
+    //     }
+    //
+    // Until we have a finer grained state-machine, we have to
+    // do a look-ahead, to make sure we don't have a mixin call.
+    // See the `rule` function for more information.
+    //
+    // We start by matching `.rounded (`, and then proceed on to
+    // the argument list, which has optional default values.
+    // We store the parameters in `params`, with a `value` key,
+    // if there is a value, such as in the case of `@radius`.
+    //
+    // Once we've got our params list, and a closing `)`, we parse
+    // the `{...}` block.
+    //
+    Rule MixinDefinition() {
+        Var<String> name = new Var<String>();
+        Var<List<MixinDefinitionParameter>> parameters = new Var<List<MixinDefinitionParameter>>();
+        return Sequence(
+                Sequence(
+                    // javascript regular expression: /^([#.](?:[\w-]|\\(?:[a-fA-F0-9]{1,6} ?|[^a-fA-F0-9]))+)\s*\(/
+                    AnyOf("#."),
+                    TestNot(Sequence(ZeroOrMore(TestNot('{'), ANY), FirstOf(';', '}'))), // /^[^{]*(;|})/
+                    CssIdent()
+                ),
+                name.set(match()),
+                OptionalSpacing(),
+                Terminal('('),
+                parameters.set(new ArrayList<MixinDefinitionParameter>()),
+                Optional(
+                        MixinDefinitionParameter(), add(parameters, (MixinDefinitionParameter) pop()),
+                        ZeroOrMore(
+                                Terminal(','),
+                                MixinDefinitionParameter(), add(parameters, (MixinDefinitionParameter) pop())
+                        )
+                ),
+                Terminal(')'),
+                Block(),
+                push(new MixinDefinition(name.get(), parameters.get(), (Block) pop()))
+        );
+    }
+
+    Rule MixinDefinitionParameter() {
+        Var<Variable> name = new Var<Variable>();
+        Var<Node> value = new Var<Node>();
+        return Sequence(
+                FirstOf(
+                        Sequence(
+                                EntitiesVariable(), name.set((Variable) pop()),
+                                Optional(
+                                        Terminal(':'),
+                                        Expression(), value.set(pop())
+                                )
+                        ),
+                        Sequence(
+                                EntitiesLiteral(), value.set(pop())
+                        ),
+                        Sequence(
+                                EntitiesKeyword(), value.set(pop())
+                        )
+                ),
+                push(new MixinDefinitionParameter(name.get(), value.get()))
+        );
+    }
+
+    //
+    // Entities are the smallest recognized token,
+    // and can be found inside a rule's value.
+    //
+    Rule Entity() {
+        return FirstOf(
+                EntitiesLiteral(),
+                EntitiesVariable(),
+                EntitiesUrl(),
+                EntitiesCall(),
+                EntitiesKeyword(),
+                EntitiesJavaScript(),
+                Comment()
+        );
+    }
+
+    //
+    // A Rule terminator. Note that we use `peek()` to check for '}',
+    // because the `block` rule will be expecting it, but we still need to make sure
+    // it's there, if ';' was ommitted.
+    //
+    Rule End() {
+        return FirstOf(Terminal(';'), Test('}'));
+    }
+
+    //
+    // IE's alpha function
+    //
+    //     alpha(opacity=88)
+    //
+    Rule IEAlpha() {
+        return Sequence(
+                // javascript regular expression: /^\(opacity=/i
+                Terminal('('), IgnoreCase("opacity"), OptionalSpacing(), Terminal('='),
+                FirstOf(
+                        Sequence(
+                                CssNum(), push(new Keyword(match())),
+                                OptionalSpacing()
+                        ),
+                        EntitiesVariable()
+                ),
+                Terminal(')'),
+                push(new Alpha(pop()))
+        );
+    }
+
+    //
+    // IE's expression function
+    //
+    //     expression(document.body.scrollHeight + 'px')
+    //
+    Rule IEExpression() {
+        // note: this is in jLess, but not Less
+        return Sequence(
+                BalancedParenthesis(),
+                push(new Anonymous("expression" + match()))
+        );
+    }
+
+    //
+    // IE's progid function
+    //
+    //     progid:DXImageTransform.Microsoft.gradient(startColorstr=@lightColor, endColorstr=@darkColor)
+    //
+    Rule IEProgId(Var<String> name) {
+        Var<String> key = new Var<String>();
+        Var<Map<String, Node>> values = new Var<Map<String, Node>>();
+        return Sequence(
+                values.set(new LinkedHashMap<String, Node>()),
+                '(',
+                Optional(
+                        CssIdent(), key.set(match()), Terminal('='), Expression(), put(values, key.get(), pop()),
+                        ZeroOrMore(
+                                Terminal(','),
+                                CssIdent(), key.set(match()), Terminal('='), Expression(), put(values, key.get(), pop())
+                        )
+                ),
+                Terminal(')'),
+                push(new Progid(name.get(), values.get()))
+        );
+    }
+
+    //
+    // A Selector Element
+    //
+    //     div
+    //     + h1
+    //     #socks
+    //     input[type="text"]
+    //
+    // Elements are the building blocks for Selectors,
+    // they are made out of a `Combinator` (see combinator rule),
+    // and an element name, such as a tag a class, or `*`.
+    //
+    Rule Element() {
+        Var<String> combinator = new Var<String>();
+        return FirstOf(
+                Sequence(
+                        Optional(Combinator(), combinator.set(match())),
+                        FirstOf(
+                                // javascript regular expression: /^(?:[.#]?|:*)(?:[\w-]|\\(?:[a-fA-F0-9]{1,6} ?|[^a-fA-F0-9]))+/
+                                Sequence(FirstOf('.', '#', ZeroOrMore(':')), CssIdent()),
+                                '*',
+                                Attribute(),
+                                // javascript regular expression: /^\([^)@]+\)/
+                                Sequence('(', OneOrMore(TestNot(AnyOf(")@")), ANY), ')'),
+                                // javascript regular expression: /^(?:\d*\.)?\d+%/
+                                Sequence(CssNum(), '%')
+                        ),
+                        push(new Element(combinator.get(), match())),
+                        OptionalSpacing()
+                ),
+                Sequence(
+                        // special case for '&' combinators where the selector is optional
+                        FirstOf("& ", '&'),
+                        push(new Element(match(), null)),
+                        OptionalSpacing()
+                )
+        );
+    }
+
+    //
+    // Combinators combine elements together, in a Selector.
+    //
+    // Because our parser isn't white-space sensitive, special care
+    // has to be taken, when parsing the descendant combinator, ` `,
+    // as it's an empty space. We have to check the previous character
+    // in the input, to see if it's a ` ` character. More info on how
+    // we deal with this in *combinator.js*.
+    //
+    Rule Combinator() {
+        return FirstOf(
+                Sequence(AnyOf(">+~"), OptionalSpacing()),
+                Sequence(FirstOf("& ", '&'), OptionalSpacing()),
+                Sequence("::", OptionalSpacing()),
+                Sequence(new LookBehindCharMatcher(' '), EMPTY)
+        );
+    }
+
+    //
+    // A CSS Selector
+    //
+    //     .class > div + h1
+    //     li a:hover
+    //
+    // Selectors are made out of one or more Elements, see above.
+    //
+    Rule Selector() {
+        Var<List<Element>> elements = new Var<List<Element>>();
+        return Sequence(
+                elements.set(new ArrayList<Element>()),
+                Element(), add(elements, (Element) pop()),
+                ZeroOrMore(
+                        TestNot(AnyOf("{};,")),
+                        Element(), add(elements, (Element) pop())
+                ),
+                push(new Selector(elements.get()))
         );
     }
 
     Rule Attribute() {
         return Sequence(
-                '[', Ws0(),
-                Ident(), Ws0(),
-                Optional(
-                        Optional(AnyOf("~|^$*")),
-                        '=', Ws0(),
-                        FirstOf(Ident(), String()), Ws0()
+                Terminal('['),
+                FirstOf(
+                        // javascript regular expression: /^[a-zA-Z-]+/
+                        Sequence(AlphaOrDashChars(), OptionalSpacing()),
+                        EntitiesQuoted()
                 ),
-                ']'
+                Optional(
+                        // javascript regular expression: /^[|~*$^]?=/
+                        Optional(AnyOf("|~*$^")),
+                        Terminal('='),
+                        FirstOf(
+                                EntitiesQuoted(),
+                                Sequence(WordOrDashChars(), OptionalSpacing())
+                        )
+                ),
+                Terminal(']')
         );
     }
 
-    Rule Pseudo() {
-        return Sequence(':', Optional(':'), FirstOf(FunctionalPseudo(), Ident()));
+    //
+    // The `block` rule is used by `ruleset` and `mixin.definition`.
+    // It's a wrapper around the `primary` rule, with added `{}`.
+    //
+    Rule Block() {
+        return Sequence(
+                Terminal('{'),
+                Primary(),
+                Terminal('}')
+        );
     }
 
-    Rule FunctionalPseudo() {
-        return Sequence(Ident(), '(', Ws0(), PseudoExpression(), ')');
-    }
-
-    Rule PseudoExpression() {
-        return OneOrMore(FirstOf(AnyOf("+-"), Dimension(), Digit(), String(), Ident()), Ws0());
-    }
-
-    Rule Negation() {
-        return Sequence(":not(", Ws0(), NegationArgument(), Ws0(), ')');
-    }
-
-    Rule NegationArgument() {
-        return FirstOf(ElementName(), Universal(), ID(), Class(), Attribute(), Pseudo());
-    }
-
-    // ********** Variables & Expressions **********
-
-    /**
-     * (Ident / Variable) Ws0 ':' Ws0 ExpressionPhrase (Ws0 ',' Ws0 ExpressionPhrase)* Sp0 (';' / Ws0 &'}')
-     * / Ident Ws0 ':' Ws0 ';'
-     *
-     * Ex: @my-var: 12px; height: 100%;
-     */
-    Rule Declaration() {
-        return FirstOf(
-                Sequence(
-                        FirstOf(
-                                Sequence(PropertyName(), push(new PropertyNode(match()))),
-                                Sequence(Variable(), push(new VariableDefinitionNode(match())), peek().setVisible(!isParserTranslationEnabled()))
-                        ), Ws0(),
-                        ':', Ws0(),
-                        push(new ExpressionGroupNode()),
-                        ExpressionPhrase(), peek(1).addChild(pop()),
-                        ZeroOrMore(
-                                Ws0(), ',', Ws0Nodes(),
-                                ExpressionPhrase(), peek(1).addChild(pop())
+    //
+    // div, .class, body > p {...}
+    //
+    Rule Ruleset() {
+        Var<List<Selector>> selectors = new Var<List<Selector>>();
+        return Sequence(
+                FirstOf(
+                        Sequence(
+                                selectors.set(new ArrayList<Selector>()),
+                                // javascript regular expression: /^([.#:% \w-]+)[\s\n]*\{/
+                                OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.#:% ")),
+                                add(selectors, new Selector(new Element("", match()))),
+                                OptionalSpacing(),
+                                Test('{')
                         ),
-                        Sp0(), FirstOf(';', Sequence(Ws0(), Test('}'))),
-                        peek(1).addChild(pop())
+                        Sequence(
+                                selectors.set(new ArrayList<Selector>()),
+                                Selector(), add(selectors, (Selector) pop()),
+                                ZeroOrMore(
+                                        Terminal(','),
+                                        Selector(), add(selectors, (Selector) pop())
+                                        // todo: js grammar has explicit comment handling in here
+                                )
+                        )
                 ),
-                // Empty rules are ignored
-                Sequence(
-                        Ident(), push(new PlaceholderNode()), Ws0(),
-                        ':', Ws0(),
-                        ';'
+                Block(),
+                push(new Ruleset(selectors.get(), (Block) pop())),
+                Optional(Terminal(';'))  // note: jLess allows this trailing semi-colon, Less does not.
+        );
+    }
+
+    Rule Rule() {
+        Var<Node> name = new Var<Node>();
+        Var<Boolean> important = new Var<Boolean>(false);
+        return Sequence(
+                TestNot(AnyOf(".#&")),
+                FirstOf(Variable(), Property()), name.set(pop()),
+                FirstOf(
+                        Sequence(
+                                !(name.get() instanceof Variable),
+                                // javascript regular expression: /^([^@+\/'"*`(;{}-]*);/
+                                ZeroOrMore(TestNot(AnyOf("@+\\/'\"*`(;{}-")), ANY),
+                                push(new Anonymous(match())),
+                                Test(';')
+                        ),
+                        Sequence(
+                                "font".equals(name.get().toString()),
+                                Font()
+                        ),
+                        Sequence(
+                                !"font".equals(name.get().toString()),
+                                Value()
+                        )
+                ),
+                Optional(Important(), important.set(true)),
+                End(),
+                push(new com.bazaarvoice.jless.tree.Rule(name.get(), pop(), important.get()))
+        );
+    }
+
+    //
+    // An @import directive
+    //
+    //     @import "lib";
+    //
+    // Depending on our environemnt, importing is done differently:
+    // In the browser, it's an XHR request, in Node, it would be a
+    // file-system operation. The function used for importing is
+    // stored in `import`, which we pass to the Import constructor.
+    //
+    Rule ImportFile() {
+        return Sequence(
+                "@import",
+                Spacing(),
+                FirstOf(EntitiesQuoted(), EntitiesUrl()),
+                Terminal(';'),
+                push(new ImportFile(pop()))
+        );
+    }
+
+    //
+    // A CSS Directive
+    //
+    //     @charset "utf-8";
+    //
+    Rule Directive() {
+        Var<String> name = new Var<String>();
+        Var<String> types = new Var<String>();
+        return Sequence(
+                Test('@'),
+                FirstOf(
+                        ImportFile(),
+                        Sequence(
+                                FirstOf("@media", "@page", "@-webkit-keyframes", "@keyframes"), name.set(match()),
+                                TestNot(AlphaOrDashChars()), // js less doesn't appear to require anything between the name and types, bug?
+                                OptionalSpacing(),
+                                // javascript regular expression: /^[^{]+/
+                                ZeroOrMore(TestNot('{'), ANY), types.set(match().trim()),
+                                Block(),
+                                push(new Directive(name.get() + " " + types.get(), (Block) pop()))
+                        ),
+                        Sequence(
+                                '@', AlphaOrDashChars(), name.set("@" + match()),
+                                OptionalSpacing(),
+                                FirstOf(
+                                        Sequence(
+                                                "@font-face".equals(name.get()),
+                                                Block(),
+                                                push(new Directive(name.get(), (Block) pop()))
+                                        ),
+                                        Sequence(
+                                                !"@font-face".equals(name.get()),
+                                                Entity(),
+                                                Terminal(';'),
+                                                push(new Directive(name.get(), pop()))
+                                        )
+                                )
+                        )
+                )
+        );
+    }
+    Rule Font() {
+        Var<List<Node>> values = new Var<List<Node>>();
+        Var<List<Node>> expressions = new Var<List<Node>>();
+        return Sequence(
+                values.set(new ArrayList<Node>()),
+
+                expressions.set(new ArrayList<Node>()),
+                ZeroOrMore(
+                        FirstOf(
+                                Shorthand(),
+                                Entity()
+                        ), add(expressions, pop())
+                ),
+                add(values, new Expression(expressions.get())),
+
+                ZeroOrMore(
+                        Terminal(','),
+                        Expression(), add(values, pop())
+                ),
+                push(new Value(values.get()))
+        );
+    }
+
+    //
+    // A Value is a comma-delimited list of Expressions
+    //
+    //     font-family: Baskerville, Georgia, serif;
+    //
+    // In a Rule, a Value represents everything after the `:`,
+    // and before the `;`.
+    //
+    Rule Value() {
+        Var<List<Node>> expressions = new Var<List<Node>>();
+        return Sequence(
+                expressions.set(new ArrayList<Node>()),
+                Expression(), add(expressions, pop()),
+                ZeroOrMore(
+                        Terminal(','),
+                        Expression(), add(expressions, pop())
+                ),
+                push(new Value(expressions.get()))
+        );
+    }
+
+    Rule Important() {
+        return Sequence('!', OptionalWhitespace(), "important", OptionalSpacing());
+    }
+
+    Rule Sub() {
+        return Sequence(Terminal('('), Expression(), Terminal(')'));
+    }
+
+    Rule Multiplication() {
+        Var<Character> op = new Var<Character>();
+        return Sequence(
+                Operand(),
+                ZeroOrMore(
+                        AnyOf("*/"), op.set(matchedChar()),
+                        Optional(Sequence(Whitespace(), OptionalSpacing())),  // comments must be separated from the operator by a space
+                        Operand(),
+                        swap(), push(new Operation(op.get(), pop(), pop()))
                 )
         );
     }
 
-    Rule Variable() {
-        return Sequence('@', Ident());
-    }
-
-    /**
-     * Expression (Operator Expression)+ Future: Operations
-     * / Expression (Ws1 Expression)* Important?
-     */
-    Rule ExpressionPhrase() {
-        // Space-separated expressions
+    Rule Addition() {
+        Var<Character> op = new Var<Character>();
         return Sequence(
-                Expression(), push(new ExpressionPhraseNode(pop())),
-                ZeroOrMore(Ws1(), Expression(), peek(1).addChild(pop())),
-                Optional(Ws0(), Important(), peek(1).addChild(pop()))
+                Multiplication(),
+                ZeroOrMore(
+                        AnyOf("-+"), op.set(matchedChar()),
+                        FirstOf(Spacing(), TestNot(new LookBehindCharMatcher(' '))),
+                        Multiplication(),
+                        swap(), push(new Operation(op.get(), pop(), pop()))
+                )
         );
     }
 
-    /**
-     * '(' Ws0 ExpressionPhrase Ws0 ')' Future: Operations
-     * / Entity
-     */
+    //
+    // An operand is anything that can be part of an operation,
+    // such as a Color, or a Variable
+    //
+    Rule Operand() {
+        Var<Boolean> negate = new Var<Boolean>(false);
+        return Sequence(
+                Optional('-', Test(AnyOf("@(")), negate.set(true)),
+                FirstOf(
+                        Sub(),
+                        EntitiesDimension(),
+                        EntitiesColor(),
+                        EntitiesVariable(),
+                        EntitiesCall()
+                ),
+                negate.get() && push(new Operation('*', new Dimension(-1, null), pop())) || true
+        );
+    }
+
+    //
+    // Expressions either represent mathematical operations,
+    // or white-space delimited Entities.
+    //
+    //     1px solid black
+    //     @var * 2
+    //
     Rule Expression() {
-        return Sequence(Value(), push(new ExpressionNode(pop())));
-    }
-
-    /**
-     * '!' Ws0 'important'
-     */
-    Rule Important() {
-        return Sequence('!', Ws0(), "important", push(new SimpleNode("!important")));
-    }
-
-    // ********** Browser Hack Workarounds **********
-
-    Rule PropertyName() {
-        return Sequence(Optional(AnyOf("*_")), Ident());
-    }
-
-    Rule UniversalHtml() {
-        return Sequence(Universal(), Ws0(), "html");
-    }
-
-    // ********** CSS Entities **********
-
-    Rule ElementName() {
-        return Ident();
-    }
-
-    Rule Universal() {
-        return Ch('*');
-    }
-
-    Rule ID() {
-        return Sequence('#', Name());
-    }
-
-    @MemoMismatches
-    Rule Class() {
-        return Sequence('.', Ident());
-    }
-
-    // ********** Functions & Arguments **********
-
-    /**
-     * Ident Arguments
-     */
-    Rule Function() {
+        Var<List<Node>> values = new Var<List<Node>>();
         return Sequence(
-                Ident(), push(new FunctionNode(match())),
-                Arguments(), peek(1).addChild(pop())
-        );
-    }
-
-    /**
-     * '(' Ws0 ExpressionPhrase Ws0 (',' Ws0 ExpressionPhrase Ws0)* ')' / '(' Ws0 ')'
-     */
-    Rule Arguments() {
-        return FirstOf(
-                Sequence(
-                        Ws0(), '(', Ws0(),
-                        ExpressionPhrase(), push(new ArgumentsNode(new ExpressionGroupNode(pop()))),
-                        Ws0(),
-                        ZeroOrMore(
-                                ',', Ws0(),
-                                ExpressionPhrase(), peek(1).addChild(new ExpressionGroupNode(pop())),
-                                Ws0()
-                        ),
-                        ')'
-                ),
-                Sequence(Ws0(), '(', Ws0(), ')', push(new ArgumentsNode()))
-        );
-    }
-
-    /**
-     * Ex: progid:DXImageTransform.Microsoft.gradient(startColorstr=@lightColor, endColorstr=@darkColor)
-     */
-    Rule FilterFunction() {
-        return Sequence(
-                Sequence(
-                        "progid:",
-                        OneOrMore(FirstOf('.', Ident()))
-                ),
-                push(new FunctionNode(match())),
-                FilterArguments(),
-                peek(1).addChild(pop())
-        );
-    }
-
-    /**
-     * '(' Ws0 FilterArgument Ws0 (',' Ws0 FilterArgument Ws0)* ')' / '(' Ws0 ')'
-     */
-    Rule FilterArguments() {
-        return FirstOf(
-                Sequence(
-                        '(', Ws0(),
-                        FilterArgument(), push(new ArgumentsNode(pop())),
-                        Ws0(),
-                        ZeroOrMore(
-                                ',', Ws0(),
-                                FilterArgument(), peek(1).addChild(pop()),
-                                Ws0()
-                        ),
-                        ')'
-                ),
-                Sequence('(', Ws0(), ')', push(new ArgumentsNode()))
-        );
-    }
-
-    /**
-     * Ex: startColorstr=@lightColor
-     */
-    Rule FilterArgument() {
-        return Sequence(
-                Ident(), push(new FilterArgumentNode(match())), Ws0(),
-                '=', Ws0(),
-                Value(), peek(1).addChild(pop())
-        );
-    }
-
-    // ********** LESS Entities **********
-
-    /**
-     * Any token used as a value in an expression
-     * Future: Accessors
-     */
-    Rule Value() {
-        return FirstOf(
-                Keyword(),
-                Literal(),
-                Function(),
-                VariableReference(),
-                URL(),
-                Font(),
-                AlphaFilter(),
-                ExpressionFunction(),
-                FilterFunction()
-        );
-    }
-
-    @MemoMismatches
-    Rule VariableReference() {
-        return Sequence(
-                Variable(),
-                pushVariableReference(match())
-        );
-    }
-
-    /**
-     * 'url(' (String / [-_%$/.&=:;#+?Alphanumeric]+) ')'
-     */
-    Rule URL() {
-        return Sequence(
-                Sequence(
-                        "url(", Ws0(),
+                values.set(new ArrayList<Node>()),
+                OneOrMore(
                         FirstOf(
-                                String(),
-                                OneOrMore(FirstOf(AnyOf("-_%$/.&=:;#+?"), Alphanumeric()))
-                        ), Ws0(),
-                        ')'
+                                Addition(),
+                                Entity()
+                        ), add(values, pop())
                 ),
-                push(new SimpleNode(match()))
+                push(new Expression(values.get()))
         );
     }
 
-    /**
-     * 'alpha(' Ws0 'opacity' Ws0 '=' Ws0 Digit1 Ws0 ')'
-     */
-    Rule AlphaFilter() {
+    Rule Property() {
         return Sequence(
-                Sequence(
-                        "alpha(", Ws0(),
-                        "opacity", Ws0(),
-                        '=', Ws0(),
-                        Digit1(), Ws0(),
-                        ')'
-                ),
-                push(new SimpleNode(match()))
+                // javascript regular expression: /^(\*?-?[-a-z_0-9]+)\s*:/
+                Sequence(Optional('*'), CssIdent()),
+                push(new Keyword(match())),
+                OptionalSpacing(),
+                Terminal(':')
         );
     }
 
-    /**
-     * 'expression(' (!(')' Ws0 [;}]) .)* ');'
-     */
-    Rule ExpressionFunction() {
-        return Sequence(
-                Sequence(
-                        "expression(",
-                        ZeroOrMore(
-                                TestNot(
-                                        ')',
-                                        Ws0(),
-                                        AnyOf(";}")
-                                ),
-                                ANY
-                        ),
-                        ')'
-                ),
-                push(new SimpleNode(match()))
-        );
+    // ********** Rules that Don't Modify the Value Stack **********
+
+    /** Equivalent to regular expression '[a-zA-Z-]+' */
+    Rule AlphaOrDashChars() {
+        return OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-"));
     }
 
-    /**
-     * Ident &Delimiter
-     *
-     * Ex: blue, small, normal
-     */
-    Rule Keyword() {
-        return Sequence(
-                Sequence(Ident(), Test(Delimiter())),
-                push(new SimpleNode(match()))
-        );
+    /** Equivalent to regular expression '[\w-]+' */
+    Rule WordOrDashChars() {
+        return OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"));
     }
 
-    /**
-     * Tokens that don't need to evaluated
-     */
-    Rule Literal() {
-        return Sequence(
-                FirstOf(Color(), MultiDimension(), Dimension(), String()),
-                push(new SimpleNode(match()))
-        );
+    /** Equivalent to regular expression '[a-fA-F0-9]' */
+    Rule HexChar() {
+        return AnyOf("ABCDEFabcdef0123456789");
     }
 
-    /**
-     * Alpha [-Alphanumeric]* &Delimiter / String
-     */
-    Rule Font() {
-        return Sequence(
-                FirstOf(
-                        Sequence(Alpha(), ZeroOrMore(FirstOf('-', Alphanumeric())), Test(Delimiter())),
-                        String()
-                ),
-                push(new SimpleNode(match()))
-        );
-    }
-
-    /**
-     * Ex: 'hello' / "hello"
-     */
-    Rule String() {
-        return FirstOf(
-                Sequence('\'', ZeroOrMore(TestNot('\''), ANY), '\''),
-                Sequence('"', ZeroOrMore(TestNot('"'), ANY), '"')
-        );
-    }
-
-    /**
-     * Some CSS properties allow multiple dimensions separated by '/'
-     *
-     * (Dimension / Ident) '/' Dimension
-     */
-    Rule MultiDimension() {
-        return Sequence(
-                FirstOf(
-                        Dimension(),
-                        Ident()
-                ),
-                '/',
-                Dimension()
-        );
-    }
-
-    /**
-     * Number Unit
-     */
-    @MemoMismatches
-    Rule Dimension() {
-        return Sequence(Number(), Unit());
-    }
-
-    /**
-     * '-'? Digit* '.' Digit+ / '-'? Digit+
-     */
-    Rule Number() {
-        return FirstOf(
-                Sequence(Optional('-'), Digit0(), '.', Digit1()),
-                Sequence(Optional('-'), Digit1())
-        );
-    }
-
-    /**
-     * ('px' / 'em' / 'pc' / '%' / 'ex' / 'in' / 'deg' / 's' / 'pt' / 'cm' / 'mm')?
-     */
-    Rule Unit() {
-        return Optional(FirstOf("px", "em", "pc", '%', "ex", "in", "deg", 's', "pt", "cm", "mm"));
-    }
-
-    /**
-     * '#' RGB
-     */
-    Rule Color() {
-        return Sequence('#', RGB());
-    }
-
-    /**
-     * Ex: 0099dd / 09d
-     */
-    Rule RGB() {
-        return FirstOf(
-                Sequence(Hex(), Hex(), Hex(), Hex(), Hex(), Hex()),
-                Sequence(Hex(), Hex(), Hex())
-        );
-    }
-
-    // ********** Comments **********
-
-    Rule Comment() {
-        return FirstOf(MultipleLineComment(), SingleLineComment());
-    }
-
-    /**
-     * '//' (!LB .)* LB Ws0
-     */
-    Rule SingleLineComment() {
-        return Sequence(
-                "//", ZeroOrMore(TestNot(AnyOf("\r\n")), ANY),
-                FirstOf('\n', "\r\n"), Ws0()
-        );
-    }
-
-    /**
-     * '/*' (!'*\/' .)* '*\/' Ws0
-     */
-    Rule MultipleLineComment() {
-        return Sequence(
-                "/*", ZeroOrMore(TestNot("*/"), ANY),
-                "*/", Ws0()
-        );
-    }
-
-    // ********** Characters & Simple Character Groups **********
-
-    Rule Alphanumeric() {
-        return FirstOf(Alpha(), Digit());
-    }
-
-    Rule Alpha() {
-        return FirstOf(CharRange('a', 'z'), CharRange('A', 'Z'));
-    }
-
-    Rule Digit0() {
-        return ZeroOrMore(Digit());
-    }
-
-    Rule Digit1() {
-        return OneOrMore(Digit());
-    }
-
-    Rule Digit() {
+    /** Equivalent to regular expression '\d' */
+    Rule DigitChar() {
         return CharRange('0', '9');
     }
 
-    Rule Hex() {
-        return FirstOf(CharRange('a', 'f'), CharRange('A', 'F'), Digit());
+    Rule Terminal(char ch) {
+        return Sequence(ch, OptionalSpacing());
     }
 
-    Rule Ws0() {
-        return ZeroOrMore(Whitespace());
-    }
-
-    Rule Ws0Nodes() {
-        return ZeroOrMore(WhitespaceNode());
-    }
-
-    Rule Ws1() {
-        return OneOrMore(Whitespace());
-    }
-
-    Rule Whitespace() {
-        return AnyOf(" \r\n\t");
-    }
-
-    Rule WhitespaceNode() {
-        return FirstOf(
-                Sequence(OneOrMore(AnyOf(" \t")), peek().addChild(new SpacingNode(match()))),
-                Sequence(FirstOf('\n', "\r\n"), peek().addChild(new LineBreakNode(1)))
-        );
-    }
-
-    Rule Sp0() {
-        return ZeroOrMore(Spacing());
-    }
-
-    Rule Sp1() {
-        return OneOrMore(Spacing());
-    }
-
-    Rule Sp1Nodes() {
-        return OneOrMore(SpacingNode());
+    Rule Terminal(String string) {
+        return Sequence(string, OptionalSpacing());
     }
 
     Rule Spacing() {
-        return FirstOf(Whitespace(), Comment());
-    }
-
-    Rule SpacingNode() {
-        return FirstOf(
-                WhitespaceNode(),
-                Sequence(Comment(), peek().addChild(new SpacingNode(match())))
+        return Sequence(
+                Test(AnyOf(" \t\r\n\f/")),  // for performance
+                OneOrMore(
+                        FirstOf(
+                                Whitespace(),
+                                Sequence(Comment(), drop())  // todo: this throws away the comment...
+                        )
+                )
         );
     }
 
-    Rule Delimiter() {
-        return FirstOf(AnyOf(";,!})"), Whitespace());
+    Rule OptionalSpacing() {
+        return Optional(Spacing());
     }
 
-    Rule NameStart() {
-        return FirstOf('_', Alpha());
+    // whitespace, as defined by the CSS specification
+    Rule Whitespace() {
+        return OneOrMore(AnyOf(" \t\r\n\f"));
     }
 
-    Rule NameCharacter() {
-        return FirstOf(AnyOf("-_"), Alphanumeric());
+    Rule OptionalWhitespace() {
+        return ZeroOrMore(AnyOf(" \t\r\n\f"));
     }
 
-    @MemoMismatches
-    Rule Ident() {
-        return Sequence(Optional('-'), NameStart(), ZeroOrMore(NameCharacter()));
+    Rule TestNotEOL() {
+        return TestNot(AnyOf("\r\n"));
     }
 
-    Rule Name() {
-        return OneOrMore(NameCharacter());
+    Rule BalancedParenthesis() {
+        return Sequence(
+                '(',
+                ZeroOrMore(
+                        FirstOf(
+                                OneOrMore(TestNot(AnyOf("()")), ANY),
+                                BalancedParenthesis()
+                        )
+                ),
+                Terminal(')')
+        );
     }
 
-    // ********** Translation Actions **********
+    // ********** Token Definitions from the CSS Specification **********
 
-    /**
-     * Locates the referenced mixin in one of the scope nodes on the stack. If found, the mixin's
-     * scope is cloned and placed onto the stack in place of the mixin reference. Additionally,
-     * any arguments are applied to the mixin's scope.
-     */
-    boolean resolveMixinReference(String name, ArgumentsNode arguments) {
-        if (!isParserTranslationEnabled()) {
-            return push(new PlaceholderNode(new SimpleNode(name)));
-        }
-
-        // Walk down the stack, looking for a scope node that knows about a given rule set
-        for (Node node : getContext().getValueStack()) {
-            if (!(node instanceof ScopeNode)) {
-                continue;
-            }
-
-            ScopeNode scope = (ScopeNode) node;
-            RuleSetNode ruleSet = scope.getRuleSet(name);
-
-            if (ruleSet == null) {
-                continue;
-            }
-
-            // Get the scope of the rule set we located and call it as a mixin
-            ScopeNode ruleSetScope = NodeTreeUtils.getFirstChild(ruleSet, ScopeNode.class).callMixin(name, arguments);
-
-            return push(ruleSetScope);
-        }
-
-        // Record error location
-        throw new UndefinedMixinException(name);
+    // ident    [-]?{nmstart}{nmchar}*
+    Rule CssIdent() {
+        return Sequence(Optional('-'), CssNmstart(), OptionalCssNmchars());
     }
 
-    /**
-     * Looks for a variable definition that matches the reference in the scope nodes on the stack.
-     * If found, a reference node that can repeat this lookup later is placed on the stack, not the
-     * current value itself. This is done because the value may change if the variable reference is
-     * inside a mixin.
-     */
-    boolean pushVariableReference(String name) {
-        if (!isParserTranslationEnabled()) {
-            return push(new SimpleNode(name));
-        }
-
-        // Walk down the stack, looking for a scope node that knows about a given variable
-        for (Node node : getContext().getValueStack()) {
-            if (!(node instanceof ScopeNode)) {
-                continue;
-            }
-
-            // Ensure that the variable exists
-            ScopeNode scope = (ScopeNode) node;
-            if (!scope.isVariableDefined(name)) {
-                continue;
-            }
-
-            return push(new VariableReferenceNode(name));
-        }
-
-        // Record error location
-        throw new UndefinedVariableException(name);
+    // nmstart  [_a-z]|{nonascii}|{escape}
+    Rule CssNmstart() {
+        return FirstOf(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"), CssNonascii(), CssEscape());
     }
 
-    // ********** Debugging **********
+    // nmchar   [_a-z0-9-]|{nonascii}|{escape}
+    Rule OptionalCssNmchars() {
+        return ZeroOrMore(FirstOf(WordOrDashChars(), CssNonascii(), CssEscape()));
+    }
 
-    boolean debug(Context context) {
+    // nonascii [^\0-\237]
+    Rule CssNonascii() {
+        return Sequence(TestNot(CharRange((char) 0, (char) 237)), ANY);
+    }
+
+    // escape   {unicode}|\\[^\n\r\f0-9a-f]
+    Rule CssEscape() {
+        return Sequence(
+                Test('\\'),  // for performance
+                FirstOf(
+                        CssUnicode(),
+                        Sequence('\\', Sequence(TestNot("\n\r\f"), ANY))
+                )
+        );
+    }
+
+    // unicode  \\[0-9a-f]{1,6}(\r\n|[ \n\r\t\f])?
+    Rule CssUnicode() {
+        return Sequence(
+                '\\',
+                HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar()))))),
+                FirstOf("\r\n", AnyOf(" \n\r\t\f"), EMPTY)
+        );
+    }
+
+    // num    [0-9]+|[0-9]*\.[0-9]+
+    Rule CssNum() {
+        return FirstOf(
+                Sequence(OneOrMore(DigitChar()), Optional('.', OneOrMore(DigitChar()))),
+                Sequence('.', OneOrMore(DigitChar()))
+        );
+    }
+
+    // string   {string1}|{string2}
+    Rule CssString() {
+        return FirstOf(
+                // string1   \"([^\n\r\f\\"]|\\{nl}|{escape})*\"
+                Sequence(
+                        '"',
+                        ZeroOrMore(
+                                FirstOf(
+                                        OneOrMore(Sequence(TestNot(AnyOf("\n\r\f\\\"")), ANY)),
+                                        Sequence('\\', CssNl()),
+                                        CssEscape()
+                                )
+                        ),
+                        '"'
+                ),
+                // string2   \'([^\n\r\f\\']|\\{nl}|{escape})*\'
+                Sequence(
+                        '\'',
+                        ZeroOrMore(
+                                FirstOf(
+                                        OneOrMore(Sequence(TestNot(AnyOf("\n\r\f\\'")), ANY)),
+                                        Sequence('\\', CssNl()),
+                                        CssEscape()
+                                )
+                        ),
+                        '\''
+                )
+        );
+    }
+
+    // nl   \n|\r\n|\r|\f
+    Rule CssNl() {
+        return FirstOf('\n', "\r\n", '\r', '\f');
+    }
+
+    <T> boolean add(Var<List<T>> list, T obj) {
+        list.get().add(obj);
+        return true;
+    }
+
+    <K,V> boolean put(Var<Map<K,V>> map, K key, V value) {
+        map.get().put(key, value);
         return true;
     }
 }

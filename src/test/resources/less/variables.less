@@ -23,7 +23,28 @@
   quotes: @q;
 }
 
+.redefinition {
+    @var: 4;
+    @var: 2;
+    @var: 3;
+    three: @var;
+}
+
+.values {
+    @a: 'Trebuchet';
+    @multi: 'A', B, C;
+    font-family: @a, @a, @a;
+    color: @c !important;
+    url: url(@a);
+    multi: something @multi, @a;
+}
+
+.variable-names {
+    @var: 'hello';
+    @name: 'var';
+    name: @@name;
+}
 .alpha {
-  @o: 95;
-  filter: alpha(opacity=@o);
+    @var: 42;
+    filter: alpha(opacity=@var);
 }
