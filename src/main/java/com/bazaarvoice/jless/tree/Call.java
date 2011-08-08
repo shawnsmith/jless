@@ -65,8 +65,8 @@ public class Call extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
-        eval(env).printCSS(env, out);
+    public void printCSS(CssWriter out) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -3,18 +3,19 @@ package com.bazaarvoice.jless.tree;
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
-import org.parboiled.support.Position;
 
 //
 // CSS @import node
 //
 public class ImportFile extends NodeWithPosition {
 
+    private final Node _location;
     private final String _path;
     private final boolean _css;
 
     public ImportFile(int position, Node location) {
         super(position);
+        _location = location;
         String path;
         if (location instanceof Quoted) {
             path = ((Quoted) location).getValue();
@@ -31,13 +32,25 @@ public class ImportFile extends NodeWithPosition {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public Node eval(Environment env) {
         if (_css) {
-            out.indent(this);
-            out.print(toString());
-            out.newline();
+            return new ImportFile(getPosition(), _location.eval(env));
         } else {
             // todo: evaluate the less file referenced by the import
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    @Override
+    public void printCSS(CssWriter out) {
+        if (_css) {
+            out.indent(this);
+            out.print("@import ");
+            _location.printCSS(out);
+            out.print(';');
+            out.newline();
+        } else {
+            throw new UnsupportedOperationException();
         }
     }
 

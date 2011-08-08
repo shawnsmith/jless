@@ -6,11 +6,17 @@ import com.bazaarvoice.jless.parser.DebugPrinter;
 
 public abstract class Node {
 
+    public Object getValue() {
+        throw new UnsupportedOperationException(getClass().getName());
+    }
+
     public Node eval(Environment env) {
         return this;
     }
 
-    public void printCSS(Environment env, CssWriter out) {
+    public void flatten()
+
+    public void printCSS(CssWriter out) {
         out.print(toString());
     }
 
@@ -21,7 +27,7 @@ public abstract class Node {
     }
 
     public Node operate(char op, Node operand) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(getClass().getName());
     }
 
     public static double operate(char op, double a, double b) {

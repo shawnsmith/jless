@@ -5,35 +5,39 @@ import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 import org.apache.commons.lang.StringUtils;
 
-import java.util.Collections;
 import java.util.List;
 
 public class MixinDefinition extends Node {
 
     private final String _name;
-    private final List<Selector> _selectors;
     private final List<MixinDefinitionParameter> _parameters;
-    private final int _required;
+    private final int _numRequired;
     private final Block _rules;
+    private final Ruleset _ruleset;
 
     public MixinDefinition(String name, List<MixinDefinitionParameter> parameters, Block rules) {
         _name = name;
-        _selectors = Collections.singletonList(new Selector(new Element("", name)));
         _parameters = parameters;
         _rules = rules;
+        _ruleset = new Ruleset(0, new Selector(new Element("", name)), _rules);
 
-        int required = 0;
+        int numRequired = 0;
         for (MixinDefinitionParameter parameter : parameters) {
             if (parameter.getName() == null || parameter.getValue() == null) {
-                required++;
+                numRequired++;
             }
         }
-        _required = required;
+        _numRequired = numRequired;
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
-        // do nothing
+    public Node eval(Environment env) {
+        throw new UnsupportedOperationException(); // TODO
+    }
+
+    @Override
+    public void printCSS(CssWriter out) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

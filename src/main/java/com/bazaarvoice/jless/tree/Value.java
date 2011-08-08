@@ -22,6 +22,11 @@ public class Value extends Node {
     }
 
     @Override
+    public List<Node> getValue() {
+        return _value;
+    }
+
+    @Override
     public Node eval(Environment env) {
         if (_value.size() > 1) {
             List<Node> results = new ArrayList<Node>(_value.size());
@@ -37,7 +42,7 @@ public class Value extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         for (int i = 0; i < _value.size(); i++) {
             if (i > 0) {
                 out.print(',');
@@ -45,7 +50,7 @@ public class Value extends Node {
                     out.print(' ');
                 }
             }
-            _value.get(i).printCSS(env, out);
+            _value.get(i).printCSS(out);
         }
     }
 

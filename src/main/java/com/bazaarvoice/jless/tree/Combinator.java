@@ -1,7 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
 import com.bazaarvoice.jless.eval.CssWriter;
-import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 public class Combinator extends Node {
@@ -12,6 +11,7 @@ public class Combinator extends Node {
         _value = toCombinator(value);
     }
 
+    @Override
     public String getValue() {
         return _value;
     }
@@ -23,7 +23,7 @@ public class Combinator extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         if (_value == null) out.print("");
         else if ("".equals(_value)) out.print("");
         else if (" ".equals(_value)) out.print(" ");

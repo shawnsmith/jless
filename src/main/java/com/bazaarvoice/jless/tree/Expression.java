@@ -31,12 +31,12 @@ public class Expression extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         for (int i = 0; i < _values.size(); i++) {
             if (i > 0) {
                 out.print(' ');
             }
-            _values.get(i).printCSS(env, out);
+            _values.get(i).printCSS(out);
         }
     }
 

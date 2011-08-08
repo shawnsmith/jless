@@ -19,10 +19,10 @@ public class Shorthand extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
-        _a.printCSS(env, out);
+    public void printCSS(CssWriter out) {
+        _a.printCSS(out);
         out.print('/');
-        _b.printCSS(env, out);
+        _b.printCSS(out);
     }
 
     @Override

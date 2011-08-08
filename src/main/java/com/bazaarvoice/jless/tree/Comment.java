@@ -1,7 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
 import com.bazaarvoice.jless.eval.CssWriter;
-import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 public class Comment extends Node {
@@ -14,12 +13,17 @@ public class Comment extends Node {
         _silent = silent;
     }
 
+    @Override
+    public String getValue() {
+        return _value;
+    }
+
     public boolean isSilent() {
         return _silent;
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         if (!out.isCompressionEnabled()) {
             out.print(_value);
         }

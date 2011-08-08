@@ -18,7 +18,7 @@ public class Operation extends Node {
 
     @Override
     public Node eval(Environment env) {
-        Node a = _left, b = _right;
+        Node a = _left.eval(env), b = _right.eval(env);
         if (a instanceof Dimension && b instanceof Color) {
             if (_op == '*' || _op == '+') {
                 Node temp = b;
@@ -32,12 +32,12 @@ public class Operation extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
-        _left.printCSS(env, out);
+    public void printCSS(CssWriter out) {
+        _left.printCSS(out);
         out.print(' ');
         out.print(_op);
         out.print(' ');
-        _right.printCSS(env, out);
+        _right.printCSS(out);
     }
 
     @Override

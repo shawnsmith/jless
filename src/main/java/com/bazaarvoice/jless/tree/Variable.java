@@ -13,11 +13,15 @@ public class Variable extends Node {
         _name = name;
     }
 
+    public String getName() {
+        return _name;
+    }
+
     @Override
     public Node eval(Environment env) {
         String name = _name;
         if (name.startsWith("@@")) {
-            name = new Variable(name.substring(1)).eval(env).toString();
+            name = "@" + new Variable(name.substring(1)).eval(env).getValue().toString();
         }
         Node value = env.lookup(name);
         if (value == null) {
@@ -27,7 +31,7 @@ public class Variable extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         throw new UnsupportedOperationException();
     }
 

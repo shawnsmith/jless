@@ -31,7 +31,7 @@ public class Progid extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         out.print(_name);
         out.print('(');
         boolean first = true;
@@ -42,7 +42,7 @@ public class Progid extends Node {
             first = false;
             out.print(entry.getKey());
             out.print('=');
-            entry.getValue().printCSS(env, out);
+            entry.getValue().printCSS(out);
         }
         out.print(')');
     }

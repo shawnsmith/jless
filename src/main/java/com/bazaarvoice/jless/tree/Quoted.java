@@ -24,6 +24,7 @@ public class Quoted extends Node {
         _escaped = escaped;
     }
 
+    @Override
     public String getValue() {
         return _value;
     }

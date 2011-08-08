@@ -10,6 +10,11 @@ public class Keyword extends Node {
     }
 
     @Override
+    public String getValue() {
+        return _value;
+    }
+
+    @Override
     public String toString() {
         return _value;
     }

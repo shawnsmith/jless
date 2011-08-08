@@ -4,8 +4,6 @@ import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
-import java.util.Collections;
-
 public class Directive extends NodeWithPosition {
 
     private final String _name;
@@ -17,7 +15,7 @@ public class Directive extends NodeWithPosition {
         super(position);
         _name = name;
         _rules = rules;
-        _ruleset = new Ruleset(position, Collections.<Selector>emptyList(), rules);
+        _ruleset = new Ruleset(position, rules);
         _value = null;
     }
 
@@ -30,14 +28,28 @@ public class Directive extends NodeWithPosition {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public Node getValue() {
+        return _value;
+    }
+
+    @Override
+    public Node eval(Environment env) {
+        if (_rules != null) {
+            throw new UnsupportedOperationException(); // TODO
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public void printCSS(CssWriter out) {
         out.indent(this);
         out.print(_name);
         out.print(' ');
         if (_rules != null) {
-            _rules.printCSS(env, out);
+            _rules.printCSS(out);
         } else {
-            _value.printCSS(env, out);
+            _value.printCSS(out);
             out.print(';');
             out.newline();
         }

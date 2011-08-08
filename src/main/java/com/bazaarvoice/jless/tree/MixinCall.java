@@ -19,12 +19,11 @@ public class MixinCall extends Node {
 
     @Override
     public Node eval(Environment env) {
-        // TODO
-        return super.eval(env);
+        throw new UnsupportedOperationException(); // TODO
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         // do nothing
     }
 

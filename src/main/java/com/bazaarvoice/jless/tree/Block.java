@@ -19,8 +19,12 @@ public class Block extends NodeWithPosition {
         _statements = statements;
     }
 
+    public List<Node> getStatements() {
+        return _statements;
+    }
+
     @Override
-    public Node eval(Environment env) {
+    public Block eval(Environment env) {
         if (_statements.size() > 0) {
             List<Node> results = new ArrayList<Node>(_statements.size());
             for (Node statement : _statements) {
@@ -33,14 +37,14 @@ public class Block extends NodeWithPosition {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         if (!_root) {
             out.print('{');
             out.newline();
             out.beginScope();
         }
         for (Node statement : _statements) {
-            statement.printCSS(env, out);
+            statement.printCSS(out);
         }
         if (!_root) {
             out.endScope();

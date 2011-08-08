@@ -1,7 +1,7 @@
 package com.bazaarvoice.jless.eval;
 
-import com.bazaarvoice.jless.eval.annotations.*;
 import com.bazaarvoice.jless.eval.annotations.Number;
+import com.bazaarvoice.jless.eval.annotations.Value;
 import com.bazaarvoice.jless.tree.Color;
 import com.bazaarvoice.jless.tree.Dimension;
 import com.bazaarvoice.jless.tree.Node;
@@ -159,22 +159,23 @@ public class Functions {
 //        return new tree.Anonymous(encodeURI(str.value).replace(/=/g, "%3D").replace(/:/g, "%3A").replace(/#/g, "%23").replace(/;/g, "%3B").replace(/\(/g, "%28").replace(/\)/g, "%29"));
 //    }
 
-//    '%': function (quoted /* arg, arg, ...*/) {
-//        var args = Array.prototype.slice.call(arguments, 1),
-//            str = quoted.value;
-//
-//        for (var i = 0; i < args.length; i++) {
-//            str = str.replace(/%[sda]/i, function(token) {
-//                var value = token.match(/s/i) ? args[i].value : args[i].toCSS();
-//                return token.match(/[A-Z]$/) ? encodeURIComponent(value) : value;
-//            });
-//        }
-//        str = str.replace(/%%/g, '%');
-//        return new(tree.Quoted)('"' + str + '"', str);
-//    }
+/*
+    @Name("%")
+    public static Quoted interpolate(List<Node> args) {
+        String string = args.get(0).getValue().toString();
+        for (int i = 1; i < args.size(); i++) {
+            str = str.replace(/%[sda]/i, function(token) {
+                var value = token.match(/s/i) ? args[i].value : args[i].toCSS();
+                return token.match(/[A-Z]$/) ? encodeURIComponent(value) : value;
+            });
+        }
+        string = StringUtils.replace(string, "%%", "%");
+        return new Quoted('"', string, false);
+    }
+*/
 
     public static Dimension round(Dimension dim) {
-        return new Dimension(dim.getValue(), dim.getUnit());
+        return new Dimension(Math.round(dim.getValue()), dim.getUnit());
     }
 
     private static double clamp(double val) {

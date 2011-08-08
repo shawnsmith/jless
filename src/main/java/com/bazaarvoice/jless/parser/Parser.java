@@ -82,7 +82,13 @@ public class Parser extends BaseParser<Node> {
     // ********** Document **********
 
     public Rule Document() {
-        return Sequence(Primary(true), EOI);
+        Var<Integer> startIndex = new Var<Integer>();
+        return Sequence(
+                startIndex.set(currentIndex()),
+                Primary(true),
+                EOI,
+                push(new Ruleset(startIndex.get(), (Block) pop()))
+        );
     }
 
     //

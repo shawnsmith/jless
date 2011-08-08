@@ -1,6 +1,7 @@
 package com.bazaarvoice.jless.tree;
 
 import com.bazaarvoice.jless.parser.DebugPrinter;
+import org.apache.commons.lang.StringUtils;
 
 //
 // A number with a unit
@@ -23,7 +24,8 @@ public class Dimension extends Node {
         this(Double.parseDouble(value), unit);
     }
 
-    public double getValue() {
+    @Override
+    public Double getValue() {
         return _value;
     }
 
@@ -56,11 +58,10 @@ public class Dimension extends Node {
     // In the future, we could implement some unit
     // conversions such that `100cm + 10mm` would yield
     // `101cm`.
-/*
     @Override
     public Node operate(char op, Node other) {
-        return new Dimension(operate(op, _value, other._value),
-                StringUtils.isNotEmpty(_unit) ? _unit : other._unit);
+        Dimension dim = (Dimension) other;
+        return new Dimension(operate(op, _value, dim._value),
+                StringUtils.isNotEmpty(_unit) ? _unit : dim._unit);
     }
-*/
 }

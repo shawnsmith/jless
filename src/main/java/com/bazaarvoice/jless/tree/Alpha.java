@@ -9,10 +9,12 @@ public class Alpha extends Node {
     private final Node _value;  // Keyword | Variable
 
     public Alpha(Node value) {
-        if (!(value instanceof Keyword || value instanceof Variable)) {
-            throw new IllegalArgumentException(value.toString());
-        }
         _value = value;
+    }
+
+    @Override
+    public Node getValue() {
+        return _value;
     }
 
     @Override
@@ -21,9 +23,9 @@ public class Alpha extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         out.print("alpha(opacity=");
-        _value.printCSS(env, out);
+        _value.printCSS(out);
         out.print(")");
     }
 

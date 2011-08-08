@@ -9,7 +9,7 @@ public class Url extends Node {
     private final Node _src;
 
     public Url(Node src) {
-        if (!(src instanceof Anonymous || src instanceof DataUri || src instanceof Quoted || src instanceof Variable)) {
+        if (!(src instanceof Anonymous || src instanceof DataUri || src instanceof Keyword || src instanceof Quoted || src instanceof Variable)) {
             throw new IllegalArgumentException(src.toString());
         }
         _src = src;
@@ -21,9 +21,9 @@ public class Url extends Node {
     }
 
     @Override
-    public void printCSS(Environment env, CssWriter out) {
+    public void printCSS(CssWriter out) {
         out.print("url(");
-        _src.printCSS(env, out);
+        _src.printCSS(out);
         out.print(")");
     }
 
