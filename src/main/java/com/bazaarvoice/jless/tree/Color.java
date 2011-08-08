@@ -72,6 +72,7 @@ public class Color extends Node {
     @Override
     public String toString() {
         if (_alpha < 1.0) {
+            // has alpha, must use rgba(r,g,b,a) function
             StringBuilder buf = new StringBuilder();
             buf.append("rgba(");
             for (double c : _rgb) {
@@ -82,12 +83,13 @@ public class Color extends Node {
             buf.append(')');
             return buf.toString();
         } else {
+            // opaque so use the more compact #rrggbb syntax
             StringBuilder buf = new StringBuilder();
             buf.append('#');
             int n = 0;
             for (double c : _rgb) {
                 long i = Math.round(c);
-                n = (n << 8) | (i > 255 ? 255 : (i < 0 ? 0 : (int) i));
+                n = (n << 8) | (int) Math.max(0, Math.min(i, 255));
             }
             String s = Integer.toHexString(n);
             for (int i = s.length(); i < 6; i++) {

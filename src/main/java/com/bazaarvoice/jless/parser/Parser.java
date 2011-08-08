@@ -681,14 +681,14 @@ public class Parser extends BaseParser<Node> {
                 FirstOf(
                         // javascript regular expression: /^[a-zA-Z-]+/
                         Sequence(AlphaOrDashChars(), OptionalSpacing()),
-                        EntitiesQuoted()
+                        Sequence(EntitiesQuoted(), drop())
                 ),
                 Optional(
                         // javascript regular expression: /^[|~*$^]?=/
                         Optional(AnyOf("|~*$^")),
                         Terminal('='),
                         FirstOf(
-                                EntitiesQuoted(),
+                                Sequence(EntitiesQuoted(), drop()),
                                 Sequence(WordOrDashChars(), OptionalSpacing())
                         )
                 ),

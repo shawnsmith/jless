@@ -32,6 +32,7 @@ public class MixinDefinition extends Node {
 
     @Override
     public Node eval(Environment env) {
+//        if (true) return this;
         throw new UnsupportedOperationException(); // TODO
     }
 
