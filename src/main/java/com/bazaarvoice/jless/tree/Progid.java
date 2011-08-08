@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
@@ -30,25 +31,20 @@ public class Progid extends Node {
     }
 
     @Override
-    public String toCSS(Environment env) {
-        StringBuilder buf = new StringBuilder();
-        buf.append(_name);
-        buf.append('(');
+    public void printCSS(Environment env, CssWriter out) {
+        out.print(_name);
+        out.print('(');
         boolean first = true;
         for (Map.Entry<String, Node> entry : _valueMap.entrySet()) {
             if (!first) {
-                buf.append(',');
-                if (!env.isCompressionEnabled()) {
-                    buf.append(' ');
-                }
+                out.print(',');
             }
             first = false;
-            buf.append(entry.getKey());
-            buf.append('=');
-            buf.append(entry.getValue().toCSS(env));
+            out.print(entry.getKey());
+            out.print('=');
+            entry.getValue().printCSS(env, out);
         }
-        buf.append(')');
-        return buf.toString();
+        out.print(')');
     }
 
     @Override

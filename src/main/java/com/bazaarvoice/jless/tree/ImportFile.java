@@ -1,17 +1,20 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
+import org.parboiled.support.Position;
 
 //
 // CSS @import node
 //
-public class ImportFile extends Node {
+public class ImportFile extends NodeWithPosition {
 
     private final String _path;
     private final boolean _css;
 
-    public ImportFile(Node location) {
+    public ImportFile(int position, Node location) {
+        super(position);
         String path;
         if (location instanceof Quoted) {
             path = ((Quoted) location).getValue();
@@ -28,12 +31,14 @@ public class ImportFile extends Node {
     }
 
     @Override
-    public String toCSS(Environment env) {
+    public void printCSS(Environment env, CssWriter out) {
         if (_css) {
-            return toString();
+            out.indent(this);
+            out.print(toString());
+            out.newline();
+        } else {
+            // todo: evaluate the less file referenced by the import
         }
-        // todo: evaluate the less file referenced by the import
-        return "";
     }
 
     @Override

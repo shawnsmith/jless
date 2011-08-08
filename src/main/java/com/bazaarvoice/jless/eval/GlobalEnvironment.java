@@ -8,11 +8,9 @@ import java.util.Map;
 
 public class GlobalEnvironment implements Environment {
 
-    private boolean _compressionEnabled;
     private final Map<String, Function<List<Node>, Node>> _functions;
 
-    public GlobalEnvironment(boolean compressionEnabled, Map<String, Function<List<Node>, Node>> functions) {
-        _compressionEnabled = compressionEnabled;
+    public GlobalEnvironment(Map<String, Function<List<Node>, Node>> functions) {
         _functions = functions;
     }
 
@@ -26,9 +24,5 @@ public class GlobalEnvironment implements Environment {
 
     public Function<List<Node>, Node> getFunction(String name) {
         return _functions.get(name);
-    }
-
-    public boolean isCompressionEnabled() {
-        return _compressionEnabled;
     }
 }

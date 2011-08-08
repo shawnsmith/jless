@@ -10,8 +10,8 @@ public class Dimension extends Node {
     private final double _value;
     private final String _unit;
 
-    public Dimension(String value, String unit) {
-        this(Double.parseDouble(value), unit);
+    public Dimension(double value) {
+        this(value, null);
     }
 
     public Dimension(double value, String unit) {
@@ -19,12 +19,22 @@ public class Dimension extends Node {
         _unit = unit != null ? unit : "";
     }
 
-/*
+    public Dimension(String value, String unit) {
+        this(Double.parseDouble(value), unit);
+    }
+
+    public double getValue() {
+        return _value;
+    }
+
+    public String getUnit() {
+        return _unit;
+    }
+
     @Override
     public Color toColor() {
         return new Color(new double[]{_value, _value, _value}, 1);
     }
-*/
 
     @Override
     public String toString() {

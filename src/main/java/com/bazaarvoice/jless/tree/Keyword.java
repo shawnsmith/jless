@@ -1,6 +1,5 @@
 package com.bazaarvoice.jless.tree;
 
-import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 public class Keyword extends Node {
@@ -8,11 +7,6 @@ public class Keyword extends Node {
 
     public Keyword(String value) {
         _value = value;
-    }
-
-    @Override
-    public String toCSS(Environment env) {
-        return _value;
     }
 
     @Override

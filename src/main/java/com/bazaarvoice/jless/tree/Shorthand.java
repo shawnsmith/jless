@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
@@ -18,8 +19,10 @@ public class Shorthand extends Node {
     }
 
     @Override
-    public String toCSS(Environment env) {
-        return _a.toCSS(env) + '/' + _b.toCSS(env);
+    public void printCSS(Environment env, CssWriter out) {
+        _a.printCSS(env, out);
+        out.print('/');
+        _b.printCSS(env, out);
     }
 
     @Override

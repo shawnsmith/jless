@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.exception.VariableException;
 import com.bazaarvoice.jless.parser.DebugPrinter;
@@ -26,7 +27,7 @@ public class Variable extends Node {
     }
 
     @Override
-    public String toCSS(Environment env) {
+    public void printCSS(Environment env, CssWriter out) {
         throw new UnsupportedOperationException();
     }
 

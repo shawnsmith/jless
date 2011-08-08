@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 import org.apache.commons.lang.StringUtils;
@@ -23,8 +24,8 @@ public class MixinCall extends Node {
     }
 
     @Override
-    public String toCSS(Environment env) {
-        throw new UnsupportedOperationException();
+    public void printCSS(Environment env, CssWriter out) {
+        // do nothing
     }
 
     @Override

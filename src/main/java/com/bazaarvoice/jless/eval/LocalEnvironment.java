@@ -31,8 +31,4 @@ public class LocalEnvironment implements Environment {
     public Function<List<Node>, Node> getFunction(String name) {
         return _parent.getFunction(name);
     }
-
-    public boolean isCompressionEnabled() {
-        return _parent.isCompressionEnabled();
-    }
 }

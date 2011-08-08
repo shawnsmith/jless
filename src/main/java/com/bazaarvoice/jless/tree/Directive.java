@@ -1,25 +1,46 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
+import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 import java.util.Collections;
 
-public class Directive extends Node {
+public class Directive extends NodeWithPosition {
 
     private final String _name;
+    private final Block _rules;
     private final Ruleset _ruleset;
     private final Node _value;
 
-    public Directive(String name, Block rules) {
+    public Directive(int position, String name, Block rules) {
+        super(position);
         _name = name;
-        _ruleset = new Ruleset(Collections.<Selector>emptyList(), rules);
+        _rules = rules;
+        _ruleset = new Ruleset(position, Collections.<Selector>emptyList(), rules);
         _value = null;
     }
 
-    public Directive(String name, Node value) {
+    public Directive(int position, String name, Node value) {
+        super(position);
         _name = name;
+        _rules = null;
         _ruleset = null;
         _value = value;
+    }
+
+    @Override
+    public void printCSS(Environment env, CssWriter out) {
+        out.indent(this);
+        out.print(_name);
+        out.print(' ');
+        if (_rules != null) {
+            _rules.printCSS(env, out);
+        } else {
+            _value.printCSS(env, out);
+            out.print(';');
+            out.newline();
+        }
     }
 
     @Override

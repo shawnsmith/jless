@@ -1,17 +1,20 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
+import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class Block extends Node {
+public class Block extends NodeWithPosition {
 
     private final boolean _root;
     private final List<Node> _statements;
 
-    public Block(boolean root, List<Node> statements) {
+    public Block(int position, boolean root, List<Node> statements) {
+        super(position);
         _root = root;
         _statements = statements;
     }
@@ -23,40 +26,33 @@ public class Block extends Node {
             for (Node statement : _statements) {
                 results.add(statement.eval(env));
             }
-            return new Block(_root, results);
+            return new Block(getPosition(), _root, results);
         } else {
             return this;
         }
     }
 
     @Override
-    public String toCSS(Environment env) {
-        StringBuilder buf = new StringBuilder();
-        for (int i = 0; i < _statements.size(); i++) {
-            if (i > 0) {
-                buf.append('\n');
-            }
-            buf.append(_statements.get(i).toCSS(env));
+    public void printCSS(Environment env, CssWriter out) {
+        if (!_root) {
+            out.print('{');
+            out.newline();
+            out.beginScope();
         }
-        return buf.toString();
+        for (Node statement : _statements) {
+            statement.printCSS(env, out);
+        }
+        if (!_root) {
+            out.endScope();
+            out.indent(this);
+            out.print('}');
+            out.newline();
+        }
     }
 
     @Override
     public String toString() {
-        StringBuilder buf = new StringBuilder();
-        if (!_root) {
-            buf.append("{\n");
-        }
-        for (Node statement : _statements) {
-            if (!_root) {
-                buf.append("  ");
-            }
-            buf.append(statement).append('\n');
-        }
-        if (!_root) {
-            buf.append("}\n");
-        }
-        return buf.toString();
+        return (_root ? "" : "{") + StringUtils.join(_statements, "\n") + (_root ? "" : "}");
     }
 
     @Override

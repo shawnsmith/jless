@@ -13,6 +13,4 @@ public interface Environment {
     Node lookup(String variable);
 
     Function<List<Node>, Node> getFunction(String name);
-
-    boolean isCompressionEnabled();
 }

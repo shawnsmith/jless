@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.exception.OperationException;
 import com.bazaarvoice.jless.parser.DebugPrinter;
@@ -8,10 +9,6 @@ public class Operation extends Node {
 
     private final char _op;
     private final Node _left, _right;
-
-    public Operation(String op, Node left, Node right) {
-        this(op.trim().charAt(0), left, right);
-    }
 
     public Operation(char op, Node left, Node right) {
         _op = op;
@@ -35,8 +32,12 @@ public class Operation extends Node {
     }
 
     @Override
-    public String toCSS(Environment env) {
-        return _left.toCSS(env) + " " + _op + " " + _right.toCSS(env);
+    public void printCSS(Environment env, CssWriter out) {
+        _left.printCSS(env, out);
+        out.print(' ');
+        out.print(_op);
+        out.print(' ');
+        _right.printCSS(env, out);
     }
 
     @Override

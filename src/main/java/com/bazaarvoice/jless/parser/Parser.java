@@ -20,7 +20,6 @@
 package com.bazaarvoice.jless.parser;
 
 import com.bazaarvoice.jless.tree.Alpha;
-import com.bazaarvoice.jless.tree.Node;
 import com.bazaarvoice.jless.tree.Anonymous;
 import com.bazaarvoice.jless.tree.Block;
 import com.bazaarvoice.jless.tree.Call;
@@ -36,6 +35,7 @@ import com.bazaarvoice.jless.tree.Keyword;
 import com.bazaarvoice.jless.tree.MixinCall;
 import com.bazaarvoice.jless.tree.MixinDefinition;
 import com.bazaarvoice.jless.tree.MixinDefinitionParameter;
+import com.bazaarvoice.jless.tree.Node;
 import com.bazaarvoice.jless.tree.Operation;
 import com.bazaarvoice.jless.tree.Progid;
 import com.bazaarvoice.jless.tree.Quoted;
@@ -101,8 +101,10 @@ public class Parser extends BaseParser<Node> {
     // block rule: at the root level.
     //
     Rule Primary(boolean root) {
+        Var<Integer> startIndex = new Var<Integer>();
         Var<List<Node>> statements = new Var<List<Node>>();
         return Sequence(
+                startIndex.set(currentIndex()),
                 statements.set(new ArrayList<Node>()),
                 ZeroOrMore(
                         FirstOf(
@@ -119,7 +121,7 @@ public class Parser extends BaseParser<Node> {
                                 Spacing()
                         )
                 ),
-                push(new Block(root, statements.get()))
+                push(new Block(startIndex.get(), root, statements.get()))
             );
     }
 
@@ -703,8 +705,10 @@ public class Parser extends BaseParser<Node> {
     // div, .class, body > p {...}
     //
     Rule Ruleset() {
+        Var<Integer> startIndex = new Var<Integer>();
         Var<List<Selector>> selectors = new Var<List<Selector>>();
         return Sequence(
+                startIndex.set(currentIndex()),
                 FirstOf(
                         Sequence(
                                 selectors.set(new ArrayList<Selector>()),
@@ -725,15 +729,17 @@ public class Parser extends BaseParser<Node> {
                         )
                 ),
                 Block(),
-                push(new Ruleset(selectors.get(), (Block) pop())),
+                push(new Ruleset(startIndex.get(), selectors.get(), (Block) pop())),
                 Optional(Terminal(';'))  // note: jLess allows this trailing semi-colon, Less does not.
         );
     }
 
     Rule Rule() {
+        Var<Integer> startIndex = new Var<Integer>();
         Var<Node> name = new Var<Node>();
         Var<Boolean> important = new Var<Boolean>(false);
         return Sequence(
+                startIndex.set(currentIndex()),
                 TestNot(AnyOf(".#&")),
                 FirstOf(Variable(), Property()), name.set(pop()),
                 FirstOf(
@@ -755,7 +761,7 @@ public class Parser extends BaseParser<Node> {
                 ),
                 Optional(Important(), important.set(true)),
                 End(),
-                push(new com.bazaarvoice.jless.tree.Rule(name.get(), pop(), important.get()))
+                push(new com.bazaarvoice.jless.tree.Rule(startIndex.get(), name.get(), pop(), important.get()))
         );
     }
 
@@ -770,12 +776,14 @@ public class Parser extends BaseParser<Node> {
     // stored in `import`, which we pass to the Import constructor.
     //
     Rule ImportFile() {
+        Var<Integer> startIndex = new Var<Integer>();
         return Sequence(
+                startIndex.set(currentIndex()),
                 "@import",
                 Spacing(),
                 FirstOf(EntitiesQuoted(), EntitiesUrl()),
                 Terminal(';'),
-                push(new ImportFile(pop()))
+                push(new ImportFile(startIndex.get(), pop()))
         );
     }
 
@@ -785,9 +793,11 @@ public class Parser extends BaseParser<Node> {
     //     @charset "utf-8";
     //
     Rule Directive() {
+        Var<Integer> startIndex = new Var<Integer>();
         Var<String> name = new Var<String>();
         Var<String> types = new Var<String>();
         return Sequence(
+                startIndex.set(currentIndex()),
                 Test('@'),
                 FirstOf(
                         ImportFile(),
@@ -798,7 +808,7 @@ public class Parser extends BaseParser<Node> {
                                 // javascript regular expression: /^[^{]+/
                                 ZeroOrMore(TestNot('{'), ANY), types.set(match().trim()),
                                 Block(),
-                                push(new Directive(name.get() + " " + types.get(), (Block) pop()))
+                                push(new Directive(startIndex.get(), name.get() + " " + types.get(), (Block) pop()))
                         ),
                         Sequence(
                                 '@', AlphaOrDashChars(), name.set("@" + match()),
@@ -807,13 +817,13 @@ public class Parser extends BaseParser<Node> {
                                         Sequence(
                                                 "@font-face".equals(name.get()),
                                                 Block(),
-                                                push(new Directive(name.get(), (Block) pop()))
+                                                push(new Directive(startIndex.get(), name.get(), (Block) pop()))
                                         ),
                                         Sequence(
                                                 !"@font-face".equals(name.get()),
                                                 Entity(),
                                                 Terminal(';'),
-                                                push(new Directive(name.get(), pop()))
+                                                push(new Directive(startIndex.get(), name.get(), pop()))
                                         )
                                 )
                         )

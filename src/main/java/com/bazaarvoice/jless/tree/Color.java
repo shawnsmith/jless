@@ -10,6 +10,15 @@ public class Color extends Node {
     private final double[] _rgb;
     private final double _alpha;
 
+    public Color(double r, double g, double b, double alpha) {
+        this(new double[]{r, g, b}, alpha);
+    }
+
+    public Color(double[] rgb, double alpha) {
+        _rgb = rgb;
+        _alpha = alpha;
+    }
+
     public Color(String rgb) {
         this(rgb, 1);
     }
@@ -41,13 +50,17 @@ public class Color extends Node {
         _alpha = alpha;
     }
 
-    public Color(double[] rgb, double alpha) {
-        _rgb = rgb;
-        _alpha = alpha;
-    }
-
+    @Override
     public Color toColor() {
         return this;
+    }
+
+    public double[] getRgb() {
+        return _rgb;
+    }
+
+    public double getAlpha() {
+        return _alpha;
     }
 
     //
@@ -63,7 +76,7 @@ public class Color extends Node {
             buf.append("rgba(");
             for (double c : _rgb) {
                 buf.append(Math.round(c));
-                buf.append(", ");
+                buf.append(",");
             }
             buf.append(_alpha);
             buf.append(')');
@@ -90,13 +103,12 @@ public class Color extends Node {
         return new DebugPrinter("Color", _rgb[0], _rgb[1], _rgb[2], _alpha);
     }
 
-//
+    //
     // Operations have to be done per-channel, if not,
     // channels will spill onto each other. Once we have
     // our result, in the form of an integer triplet,
     // we create a new Color node to hold the result.
     //
-/*
     public Node operate(char op, Node other) {
         Color color = other.toColor();
         double[] result = new double[3];
@@ -105,9 +117,8 @@ public class Color extends Node {
         }
         return new Color(result, _alpha + color._alpha);
     }
-*/
 
-    public double[] toHSL() {
+    public HSL toHSL() {
         double r = _rgb[0] / 255,
                g = _rgb[1] / 255,
                b = _rgb[2] / 255,
@@ -130,6 +141,17 @@ public class Color extends Node {
             }
             h /= 6;
         }
-        return new double[]{ h * 360, s, l, a };
+        return new HSL(h * 360, s, l, a);
+    }
+
+    public static class HSL {
+        public double h, s, l, a;
+
+        public HSL(double hue, double saturation, double lightness, double alpha) {
+            this.h = hue;
+            this.s = saturation;
+            this.l = lightness;
+            this.a = alpha;
+        }
     }
 }

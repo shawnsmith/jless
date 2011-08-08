@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.exception.FunctionException;
 import com.bazaarvoice.jless.parser.DebugPrinter;
@@ -37,7 +38,7 @@ public class Call extends Node {
     @Override
     public Node eval(Environment env) {
         List<Node> args = new ArrayList<Node>(_args.size());
-        for (Node arg : args) {
+        for (Node arg : _args) {
             args.add(arg.eval(env));
         }
 
@@ -55,11 +56,8 @@ public class Call extends Node {
             for (int i = 0; i < args.size(); i++) {
                 if (i > 0) {
                     buf.append(',');
-                    if (!env.isCompressionEnabled()) {
-                        buf.append(' ');
-                    }
-                    buf.append(args.get(i).toCSS(env));
                 }
+                buf.append(args.get(i));
             }
             buf.append(')');
             return new Anonymous(buf.toString());
@@ -67,8 +65,8 @@ public class Call extends Node {
     }
 
     @Override
-    public String toCSS(Environment env) {
-        return eval(env).toCSS(env);
+    public void printCSS(Environment env, CssWriter out) {
+        eval(env).printCSS(env, out);
     }
 
     @Override
