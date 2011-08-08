@@ -12,6 +12,13 @@ public class Selector extends Node {
 
     private final List<Element> _elements;
 
+    public Selector(boolean root) {
+        if (!root) {
+            throw new IllegalArgumentException();
+        }
+        _elements = Collections.emptyList();
+    }
+
     public Selector(Element element) {
         this(Collections.singletonList(element));
     }

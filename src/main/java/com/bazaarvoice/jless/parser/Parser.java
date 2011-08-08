@@ -24,6 +24,7 @@ import com.bazaarvoice.jless.tree.Anonymous;
 import com.bazaarvoice.jless.tree.Block;
 import com.bazaarvoice.jless.tree.Call;
 import com.bazaarvoice.jless.tree.Color;
+import com.bazaarvoice.jless.tree.Combinator;
 import com.bazaarvoice.jless.tree.Comment;
 import com.bazaarvoice.jless.tree.DataUri;
 import com.bazaarvoice.jless.tree.Dimension;
@@ -609,10 +610,9 @@ public class Parser extends BaseParser<Node> {
     // and an element name, such as a tag a class, or `*`.
     //
     Rule Element() {
-        Var<String> combinator = new Var<String>();
         return FirstOf(
                 Sequence(
-                        Optional(Combinator(), combinator.set(match())),
+                        Combinator(),
                         FirstOf(
                                 // javascript regular expression: /^(?:[.#]?|:*)(?:[\w-]|\\(?:[a-fA-F0-9]{1,6} ?|[^a-fA-F0-9]))+/
                                 Sequence(FirstOf('.', '#', ZeroOrMore(':')), CssIdent()),
@@ -623,7 +623,7 @@ public class Parser extends BaseParser<Node> {
                                 // javascript regular expression: /^(?:\d*\.)?\d+%/
                                 Sequence(CssNum(), '%')
                         ),
-                        push(new Element(combinator.get(), match())),
+                        push(new Element((Combinator) pop(), match())),
                         OptionalSpacing()
                 ),
                 Sequence(
@@ -646,10 +646,11 @@ public class Parser extends BaseParser<Node> {
     //
     Rule Combinator() {
         return FirstOf(
-                Sequence(AnyOf(">+~"), OptionalSpacing()),
-                Sequence(FirstOf("& ", '&'), OptionalSpacing()),
-                Sequence("::", OptionalSpacing()),
-                Sequence(new LookBehindCharMatcher(' '), EMPTY)
+                Sequence(Sequence(AnyOf(">+~"), OptionalSpacing()), push(new Combinator(match()))),
+                Sequence(Sequence(FirstOf("& ", '&'), OptionalSpacing()), push(new Combinator(match()))),
+                Sequence(Sequence("::", OptionalSpacing()), push(new Combinator(match()))),
+                Sequence(new LookBehindCharMatcher(' '), push(new Combinator(" "))),
+                Sequence(EMPTY, push(new Combinator(null)))
         );
     }
 

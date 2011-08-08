@@ -13,10 +13,13 @@ import java.util.Map;
 public class Ruleset extends NodeWithPosition {
     private final List<Selector> _selectors;
     private final Block _rules;
-    private final Map<String, Node> _variableMap;
+    private Map<String, Node> _variableMap;
 
     public Ruleset(int position, Block rules) {
-        this(position, Collections.<Selector>emptyList(), rules);
+        this(position, new Selector(true), rules);
+        if (!rules.isRoot()) {
+            throw new IllegalStateException();
+        }
     }
 
     public Ruleset(int position, Selector selector, Block rules) {
@@ -27,34 +30,56 @@ public class Ruleset extends NodeWithPosition {
         super(position);
         _selectors = selectors;
         _rules = rules;
+    }
 
-        _variableMap = new HashMap<String, Node>();
-        for (Node statement : rules.getStatements()) {
-            if (statement instanceof Rule) {
-                Rule rule = (Rule) statement;
-                if (rule.getName() instanceof Variable) {
-                    _variableMap.put(((Variable) rule.getName()).getName(), rule.getValue());
-                }
-            }
-        }
+    public boolean isRoot() {
+        return _rules.isRoot();
     }
 
     @Override
     public Node eval(Environment env) {
-        Environment localEnv = env.extend(_variableMap);
+        Environment localEnv = env.extend(getVariableMap());
+        Block rules = _rules.eval(localEnv);
+        if (isRoot()) {
+            List<Node> flattenedRulesets = new ArrayList<Node>();
+            rules.flatten(_selectors, flattenedRulesets);
+            return new Ruleset(getPosition(), new Block(getPosition(), true, flattenedRulesets));
+        } else {
+            return new Ruleset(getPosition(), _selectors, rules);
+        }
+    }
 
-        return new Ruleset(getPosition(), _selectors, _rules.eval(localEnv));
+    @Override
+    public Node flatten(List<Selector> contexts, List<Node> flattenedRulesets) {
+        List<Selector> localContexts = joinSelectors(contexts, _selectors);
+        List<Node> childFlattenedRulesets = new ArrayList<Node>();
+        Block flattenedRules = _rules.flatten(localContexts, childFlattenedRulesets);
+        if (!flattenedRules.isEmpty()) {
+            flattenedRulesets.add(new Ruleset(getPosition(), localContexts, flattenedRules));
+        }
+        flattenedRulesets.addAll(childFlattenedRulesets);
+        return null;
     }
 
     @Override
     public void printCSS(CssWriter out) {
         out.indent(this);
-        if (!_selectors.isEmpty()) {
+        if (!isRoot()) {
             for (int i = 0; i < _selectors.size(); i++) {
                 if (i > 0) {
-                    out.print(", ");
+                    out.print(',');
+                    if (!out.isCompressionEnabled()) {
+                        if (_selectors.size() > 3) {
+                            out.newline();
+                            out.indent(this);
+                        } else {
+                            out.print(' ');
+                        }
+                    }
                 }
-                out.print(_selectors.get(i).toString().trim());
+                CssWriter selectorOut = out.nestedWriter();
+                _selectors.get(i).printCSS(selectorOut);
+                out.print(selectorOut.toString().trim());
             }
             out.print(' ');
         }
@@ -64,7 +89,7 @@ public class Ruleset extends NodeWithPosition {
     @Override
     public String toString() {
         StringBuilder buf = new StringBuilder();
-        if (!_selectors.isEmpty()) {
+        if (!isRoot()) {
             for (int i = 0; i < _selectors.size(); i++) {
                 if (i > 0) {
                     buf.append(", ");
@@ -82,42 +107,52 @@ public class Ruleset extends NodeWithPosition {
         return new DebugPrinter("Ruleset", _selectors, _rules);
     }
 
-    private void joinSelectors(List<List<Selector>> paths, List<List<Selector>> context, List<Selector> selectors) {
-        for (Selector selector : selectors) {
-            joinSelector(paths, context, selector);
+    private Map<String, Node> getVariableMap() {
+        if (_variableMap == null) {
+            _variableMap = new HashMap<String, Node>();
+            for (Node statement : _rules.getStatements()) {
+                if (statement instanceof Rule) {
+                    Rule rule = (Rule) statement;
+                    if (rule.getName() instanceof Variable) {
+                        _variableMap.put(((Variable) rule.getName()).getName(), rule.getValue());
+                    }
+                }
+            }
         }
+        return _variableMap;
     }
 
-    private void joinSelector(List<List<Selector>> paths, List<List<Selector>> context, Selector selector) {
-        List<Element> beforeElements = new ArrayList<Element>();
-        List<Element> afterElements = new ArrayList<Element>();
+    private List<Selector> joinSelectors(List<Selector> contexts, List<Selector> selectors) {
+        List<Selector> results = new ArrayList<Selector>();
+        for (Selector selector : selectors) {
+            List<Element> beforeElements = new ArrayList<Element>();
+            List<Element> afterElements = new ArrayList<Element>();
 
-        boolean hasParentSelector = false;
-        for (Element element : selector.getElements()) {
-            if (element.getCombinator().getValue().startsWith("&")) {
-                hasParentSelector = true;
+            boolean hasParentSelector = false;
+            for (Element element : selector.getElements()) {
+                if (element.getCombinator().getValue().startsWith("&")) {
+                    hasParentSelector = true;
+                }
+                (hasParentSelector ? afterElements : beforeElements).add(element);
             }
-            (hasParentSelector ? afterElements : beforeElements).add(element);
-        }
 
-        if (!hasParentSelector) {
-            afterElements = beforeElements;
-            beforeElements = Collections.emptyList();
-        }
-
-        Selector before = !beforeElements.isEmpty() ? new Selector(beforeElements) : null;
-        Selector after = !afterElements.isEmpty() ? new Selector(afterElements) : null;
-
-        for (List<Selector> cxt : context) {
-            List<Selector> path = new ArrayList<Selector>();
-            if (before != null) {
-                path.add(before);
+            if (!hasParentSelector) {
+                afterElements = beforeElements;
+                beforeElements = Collections.emptyList();
             }
-            path.addAll(cxt);
-            if (after != null) {
-                path.add(after);
+
+            for (Selector context : contexts) {
+                List<Element> path = new ArrayList<Element>();
+                if (!beforeElements.isEmpty()) {
+                    path.addAll(new Selector(beforeElements).getElements());
+                }
+                path.addAll(context.getElements());
+                if (!afterElements.isEmpty()) {
+                    path.addAll(new Selector(afterElements).getElements());
+                }
+                results.add(new Selector(path));
             }
-            paths.add(path);
         }
+        return results;
     }
 }

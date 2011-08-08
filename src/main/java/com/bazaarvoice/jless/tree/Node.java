@@ -4,6 +4,8 @@ import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
+import java.util.List;
+
 public abstract class Node {
 
     public Object getValue() {
@@ -14,7 +16,9 @@ public abstract class Node {
         return this;
     }
 
-    public void flatten()
+    public Node flatten(List<Selector> contexts, List<Node> flattenedRulesets) {
+        return this;
+    }
 
     public void printCSS(CssWriter out) {
         out.print(toString());

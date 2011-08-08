@@ -20,6 +20,10 @@ public class CssWriter {
         _inputBuffer = inputBuffer;
     }
 
+    public CssWriter nestedWriter() {
+        return new CssWriter(_compress, _inputBuffer);
+    }
+
     public boolean isCompressionEnabled() {
         return _compress;
     }
@@ -31,7 +35,7 @@ public class CssWriter {
     public void indent(NodeWithPosition node) {
         if (!_compress) {
             int line = _inputBuffer.getPosition(node.getPosition()).line;
-            while (_numLines < line) {
+            while (_numLines < line - 1) {
                 newline();
             }
             for (int i = 0; i < _nesting; i++) {
@@ -46,8 +50,7 @@ public class CssWriter {
 
     public void print(String string) {
         _buf.append(string);
-        int pos = -1;
-        while ((pos = string.indexOf('\n', pos + 1)) != -1) {
+        for (int pos = 0; (pos = string.indexOf('\n', pos)) != -1; pos++) {
             _numLines++;
         }
     }

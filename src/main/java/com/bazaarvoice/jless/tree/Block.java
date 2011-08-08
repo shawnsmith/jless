@@ -19,16 +19,40 @@ public class Block extends NodeWithPosition {
         _statements = statements;
     }
 
+    public boolean isRoot() {
+        return _root;
+    }
+
+    public boolean isEmpty() {
+        return _statements.isEmpty();
+    }
+
     public List<Node> getStatements() {
         return _statements;
     }
 
     @Override
     public Block eval(Environment env) {
-        if (_statements.size() > 0) {
+        if (!isEmpty()) {
             List<Node> results = new ArrayList<Node>(_statements.size());
             for (Node statement : _statements) {
                 results.add(statement.eval(env));
+            }
+            return new Block(getPosition(), _root, results);
+        } else {
+            return this;
+        }
+    }
+
+    @Override
+    public Block flatten(List<Selector> contexts, List<Node> flattenedRulesets) {
+        if (!isEmpty()) {
+            List<Node> results = new ArrayList<Node>(_statements.size());
+            for (Node statement : _statements) {
+                statement = statement.flatten(contexts, flattenedRulesets);
+                if (statement != null) {
+                    results.add(statement);
+                }
             }
             return new Block(getPosition(), _root, results);
         } else {
