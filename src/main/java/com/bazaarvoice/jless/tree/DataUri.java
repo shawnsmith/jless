@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 public class DataUri extends Node {
@@ -17,8 +18,12 @@ public class DataUri extends Node {
     }
 
     @Override
-    public String toString() {
-        return "data:" + _mime + _charset + _encoding + _data;
+    public void printCSS(CssWriter out) {
+        out.print("data:");
+        out.print(_mime);
+        out.print(_charset);
+        out.print(_encoding);
+        out.print(_data);
     }
 
     @Override

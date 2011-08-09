@@ -13,7 +13,9 @@ import java.util.Map;
 public class Ruleset extends NodeWithPosition {
     private final List<Selector> _selectors;
     private final Block _rules;
-    private Map<String, Node> _variableMap;
+    private Map<String, Node> _variables;
+    private List<Ruleset> _rulesets;
+    private Map<List<Element>, List<Ruleset>> _lookups = new HashMap<List<Element>, List<Ruleset>>();
 
     public Ruleset(int position, Block rules) {
         this(position, new Selector(true), rules);
@@ -36,9 +38,17 @@ public class Ruleset extends NodeWithPosition {
         return _rules.isRoot();
     }
 
+    public List<Selector> getSelectors() {
+        return _selectors;
+    }
+
+    public Block getRules() {
+        return _rules;
+    }
+
     @Override
     public Node eval(Environment env) {
-        Environment localEnv = env.extend(getVariableMap());
+        Environment localEnv = env.extend(this);
         Block rules = _rules.eval(localEnv);
         if (isRoot()) {
             List<Node> flattenedRulesets = new ArrayList<Node>();
@@ -47,6 +57,10 @@ public class Ruleset extends NodeWithPosition {
         } else {
             return new Ruleset(getPosition(), _selectors, rules);
         }
+    }
+
+    public Node eval(Environment env, List<Node> arguments) {
+        return eval(env);
     }
 
     @Override
@@ -77,29 +91,11 @@ public class Ruleset extends NodeWithPosition {
                         }
                     }
                 }
-                CssWriter selectorOut = out.nestedWriter();
-                _selectors.get(i).printCSS(selectorOut);
-                out.print(selectorOut.toString().trim());
+                out.print(_selectors.get(i).toString().trim());
             }
             out.print(' ');
         }
-        _rules.printCSS(out);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder buf = new StringBuilder();
-        if (!isRoot()) {
-            for (int i = 0; i < _selectors.size(); i++) {
-                if (i > 0) {
-                    buf.append(", ");
-                }
-                buf.append(_selectors.get(0).toString().trim());
-            }
-            buf.append(' ');
-        }
-        buf.append(_rules);
-        return buf.toString();
+        out.print(_rules);
     }
 
     @Override
@@ -107,19 +103,58 @@ public class Ruleset extends NodeWithPosition {
         return new DebugPrinter("Ruleset", _selectors, _rules);
     }
 
-    private Map<String, Node> getVariableMap() {
-        if (_variableMap == null) {
-            _variableMap = new HashMap<String, Node>();
+    public boolean match(List<Node> arguments) {
+        return arguments.isEmpty();
+    }
+
+    public Map<String, Node> getVariables() {
+        if (_variables == null) {
+            _variables = new HashMap<String, Node>();
             for (Node statement : _rules.getStatements()) {
                 if (statement instanceof Rule) {
                     Rule rule = (Rule) statement;
                     if (rule.getName() instanceof Variable) {
-                        _variableMap.put(((Variable) rule.getName()).getName(), rule.getValue());
+                        _variables.put(((Variable) rule.getName()).getName(), rule.getValue());
                     }
                 }
             }
         }
-        return _variableMap;
+        return _variables;
+    }
+
+    public List<Ruleset> getRulesets() {
+        if (_rulesets == null) {
+            _rulesets = new ArrayList<Ruleset>();
+            for (Node statement : _rules.getStatements()) {
+                if (statement instanceof Ruleset) {
+                    _rulesets.add((Ruleset) statement);
+                }
+            }
+        }
+        return _rulesets;
+    }
+
+    public List<Ruleset> findRulesets(List<Element> elements) {
+        List<Ruleset> rulesets = _lookups.get(elements);
+        if (rulesets == null) {
+            rulesets = new ArrayList<Ruleset>();
+            for (Ruleset ruleset : getRulesets()) {
+                if (ruleset != this) {
+                    for (Selector selector : ruleset.getSelectors()) {
+                        if (elements.get(0).getValue().equals(selector.getElements().get(0).getValue())) {
+                            if (elements.size() > 1) {
+                                rulesets.addAll(ruleset.findRulesets(elements.subList(1, elements.size())));
+                            } else {
+                                rulesets.add(ruleset);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            _lookups.put(elements, rulesets);
+        }
+        return rulesets;
     }
 
     private List<Selector> joinSelectors(List<Selector> contexts, List<Selector> selectors) {

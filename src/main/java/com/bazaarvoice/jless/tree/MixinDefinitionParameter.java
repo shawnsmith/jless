@@ -23,14 +23,15 @@ public class MixinDefinitionParameter extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        // do nothing
-    }
-
-    @Override
-    public String toString() {
-        return (_name != null ? _name : "") +
-                (_name != null && _value != null ? ": " : "") +
-                (_value != null ? _value : "");
+        if (_name != null) {
+            out.print(_name);
+        }
+        if (_name != null && _value != null) {
+            out.print(": ");
+        }
+        if (_value != null) {
+            out.print(_value);
+        }
     }
 
     @Override

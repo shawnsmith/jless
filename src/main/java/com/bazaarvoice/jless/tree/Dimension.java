@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 import org.apache.commons.lang.StringUtils;
 
@@ -39,12 +40,13 @@ public class Dimension extends Node {
     }
 
     @Override
-    public String toString() {
+    public void printCSS(CssWriter out) {
         String string = Double.toString(_value);
         if (string.endsWith(".0")) {
             string = string.substring(0, string.length() - 2);
         }
-        return string + _unit;
+        out.print(string);
+        out.print(_unit);
     }
 
     @Override

@@ -23,13 +23,8 @@ public class Url extends Node {
     @Override
     public void printCSS(CssWriter out) {
         out.print("url(");
-        _src.printCSS(out);
+        out.print(_src);
         out.print(")");
-    }
-
-    @Override
-    public String toString() {
-        return "url(" + _src + ")";
     }
 
     @Override

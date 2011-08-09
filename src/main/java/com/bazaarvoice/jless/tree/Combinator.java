@@ -24,11 +24,11 @@ public class Combinator extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        if (_value == null) out.print("");
-        else if ("".equals(_value)) out.print("");
-        else if (" ".equals(_value)) out.print(" ");
-        else if ("&".equals(_value)) out.print("");
-        else if ("& ".equals(_value)) out.print(" ");
+        if (_value == null) /* do nothing */;
+        else if ("".equals(_value)) /* do nothing */;
+        else if (" ".equals(_value)) out.print(' ');
+        else if ("&".equals(_value)) /* do nothing */;
+        else if ("& ".equals(_value)) out.print(' ');
         else if (":".equals(_value)) out.print(" :");
         else if ("::".equals(_value)) out.print("::");
         else if ("+".equals(_value)) out.print(out.isCompressionEnabled() ? "+" : " + ");
@@ -38,12 +38,17 @@ public class Combinator extends Node {
     }
 
     @Override
-    public String toString() {
-        return _value;
+    public DebugPrinter toDebugPrinter() {
+        return new DebugPrinter("Combinator", "'" + _value + "'");
     }
 
     @Override
-    public DebugPrinter toDebugPrinter() {
-        return new DebugPrinter("Combinator", "'" + _value + "'");
+    public boolean equals(Object obj) {
+        return obj == this || (obj instanceof Combinator && _value.equals(((Combinator) obj)._value));
+    }
+
+    @Override
+    public int hashCode() {
+        return _value.hashCode() + 22783;
     }
 }

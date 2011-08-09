@@ -28,17 +28,25 @@ public class Element extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        _combinator.printCSS(out);
+        out.print(_combinator);
         out.print(_value);
-    }
-
-    @Override
-    public String toString() {
-        return _combinator + _value;
     }
 
     @Override
     public DebugPrinter toDebugPrinter() {
         return new DebugPrinter("Element", _combinator, _value);
+    }
+
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this || (obj instanceof Element &&
+                _value.equals(((Element) obj)._value) &&
+                _combinator.equals(((Element) obj)._combinator));
+    }
+
+    @Override
+    public int hashCode() {
+        return _combinator.hashCode() * 13 + _value.hashCode();
     }
 }

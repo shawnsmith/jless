@@ -30,11 +30,6 @@ public class Comment extends Node {
     }
 
     @Override
-    public String toString() {
-        return _value;
-    }
-
-    @Override
     public DebugPrinter toDebugPrinter() {
         return new DebugPrinter("Comment", _value, _silent);
     }

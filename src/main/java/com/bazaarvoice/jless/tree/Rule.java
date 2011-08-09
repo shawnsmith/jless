@@ -31,31 +31,26 @@ public class Rule extends NodeWithPosition {
 
     @Override
     public Node eval(Environment env) {
+        if (_name instanceof Variable) {
+            return null;
+        }
         return new Rule(getPosition(), _name, _value.eval(env), _important);
     }
 
     @Override
     public void printCSS(CssWriter out) {
-        if (_name instanceof Variable) {
-            return;
-        }
         out.indent(this);
-        _name.printCSS(out);
+        out.print(_name);
         out.print(':');
         if (!out.isCompressionEnabled()) {
             out.print(' ');
         }
-        _value.printCSS(out);
+        out.print(_value);
         if (_important) {
             out.print(" !important");
         }
         out.print(';');
         out.newline();
-    }
-
-    @Override
-    public String toString() {
-        return _name + ": " + _value + (_important ? " !important" : "") + ';';
     }
 
     @Override

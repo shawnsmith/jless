@@ -43,20 +43,11 @@ public class ImportFile extends NodeWithPosition {
 
     @Override
     public void printCSS(CssWriter out) {
-        if (_css) {
-            out.indent(this);
-            out.print("@import ");
-            _location.printCSS(out);
-            out.print(';');
-            out.newline();
-        } else {
-            throw new UnsupportedOperationException();
-        }
-    }
-
-    @Override
-    public String toString() {
-        return "@import " + _path + ";\n";
+        out.indent(this);
+        out.print("@import ");
+        out.print(_location);
+        out.print(';');
+        out.newline();
     }
 
     @Override

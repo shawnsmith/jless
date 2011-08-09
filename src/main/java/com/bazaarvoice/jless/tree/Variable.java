@@ -23,7 +23,7 @@ public class Variable extends Node {
         if (name.startsWith("@@")) {
             name = "@" + new Variable(name.substring(1)).eval(env).getValue().toString();
         }
-        Node value = env.lookup(name);
+        Node value = env.getVariable(name);
         if (value == null) {
             throw new VariableException("Variable is undefined: " + name);
         }
@@ -32,12 +32,7 @@ public class Variable extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String toString() {
-        return _name;
+        out.print(_name);
     }
 
     @Override

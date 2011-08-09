@@ -3,7 +3,6 @@ package com.bazaarvoice.jless.tree;
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,20 +42,7 @@ public class Value extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        for (int i = 0; i < _value.size(); i++) {
-            if (i > 0) {
-                out.print(',');
-                if (!out.isCompressionEnabled()) {
-                    out.print(' ');
-                }
-            }
-            _value.get(i).printCSS(out);
-        }
-    }
-
-    @Override
-    public String toString() {
-        return StringUtils.join(_value, ", ");
+        out.print(_value, ",", ", ");
     }
 
     @Override

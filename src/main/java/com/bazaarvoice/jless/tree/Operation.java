@@ -33,16 +33,11 @@ public class Operation extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        _left.printCSS(out);
+        out.print(_left);
         out.print(' ');
         out.print(_op);
         out.print(' ');
-        _right.printCSS(out);
-    }
-
-    @Override
-    public String toString() {
-        return _left + " " + _op + " " + _right;
+        out.print(_right);
     }
 
     @Override

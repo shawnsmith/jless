@@ -20,8 +20,13 @@ public abstract class Node {
         return this;
     }
 
-    public void printCSS(CssWriter out) {
-        out.print(toString());
+    public abstract void printCSS(CssWriter out);
+
+    @Override
+    public String toString() {
+        CssWriter out = new CssWriter();
+        out.print(this);
+        return out.toString();
     }
 
     public abstract DebugPrinter toDebugPrinter();

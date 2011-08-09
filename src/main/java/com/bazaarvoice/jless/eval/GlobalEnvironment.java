@@ -1,8 +1,11 @@
 package com.bazaarvoice.jless.eval;
 
+import com.bazaarvoice.jless.tree.Element;
 import com.bazaarvoice.jless.tree.Node;
+import com.bazaarvoice.jless.tree.Ruleset;
 import com.google.common.base.Function;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -14,15 +17,23 @@ public class GlobalEnvironment implements Environment {
         _functions = functions;
     }
 
-    public Environment extend(Map<String, Node> values) {
-        return new LocalEnvironment(this, values);
+    @Override
+    public Environment extend(Ruleset ruleset) {
+        return new LocalEnvironment(this, ruleset);
     }
 
-    public Node lookup(String variable) {
+    @Override
+    public Node getVariable(String variable) {
         return null;
     }
 
+    @Override
     public Function<List<Node>, Node> getFunction(String name) {
         return _functions.get(name);
+    }
+
+    @Override
+    public List<Ruleset> getRulesets(List<Element> elements) {
+        return Collections.emptyList();
     }
 }

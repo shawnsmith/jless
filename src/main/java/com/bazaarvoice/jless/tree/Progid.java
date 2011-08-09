@@ -42,28 +42,9 @@ public class Progid extends Node {
             first = false;
             out.print(entry.getKey());
             out.print('=');
-            entry.getValue().printCSS(out);
+            out.print(entry.getValue());
         }
         out.print(')');
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder buf = new StringBuilder();
-        buf.append(_name);
-        buf.append('(');
-        boolean first = true;
-        for (Map.Entry<String, Node> entry : _valueMap.entrySet()) {
-            if (!first) {
-                buf.append(", ");
-            }
-            first = false;
-            buf.append(entry.getKey());
-            buf.append('=');
-            buf.append(entry.getValue());
-        }
-        buf.append(')');
-        return buf.toString();
     }
 
     @Override

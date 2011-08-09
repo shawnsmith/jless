@@ -466,9 +466,11 @@ public class Parser extends BaseParser<Node> {
     // the `{...}` block.
     //
     Rule MixinDefinition() {
+        Var<Integer> startIndex = new Var<Integer>();
         Var<String> name = new Var<String>();
         Var<List<MixinDefinitionParameter>> parameters = new Var<List<MixinDefinitionParameter>>();
         return Sequence(
+                startIndex.set(currentIndex()),
                 Sequence(
                     // javascript regular expression: /^([#.](?:[\w-]|\\(?:[a-fA-F0-9]{1,6} ?|[^a-fA-F0-9]))+)\s*\(/
                     AnyOf("#."),
@@ -488,7 +490,7 @@ public class Parser extends BaseParser<Node> {
                 ),
                 Terminal(')'),
                 Block(),
-                push(new MixinDefinition(name.get(), parameters.get(), (Block) pop()))
+                push(new MixinDefinition(startIndex.get(), name.get(), parameters.get(), (Block) pop()))
         );
     }
 
@@ -987,7 +989,7 @@ public class Parser extends BaseParser<Node> {
 
     /** Equivalent to regular expression '[a-fA-F0-9]' */
     Rule HexChar() {
-        return AnyOf("ABCDEFabcdef0123456789");
+        return AnyOf("0123456789abcdefABCDEF");
     }
 
     /** Equivalent to regular expression '\d' */
@@ -1047,45 +1049,45 @@ public class Parser extends BaseParser<Node> {
 
     // ********** Token Definitions from the CSS Specification **********
 
-    // ident    [-]?{nmstart}{nmchar}*
-    Rule CssIdent() {
-        return Sequence(Optional('-'), CssNmstart(), OptionalCssNmchars());
-    }
+// ident    [-]?{nmstart}{nmchar}*
+Rule CssIdent() {
+    return Sequence(Optional('-'), CssNmstart(), OptionalCssNmchars());
+}
 
-    // nmstart  [_a-z]|{nonascii}|{escape}
-    Rule CssNmstart() {
-        return FirstOf(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"), CssNonascii(), CssEscape());
-    }
+// nmstart  [_a-z]|{nonascii}|{escape}
+Rule CssNmstart() {
+    return FirstOf(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"), CssNonascii(), CssEscape());
+}
 
-    // nmchar   [_a-z0-9-]|{nonascii}|{escape}
-    Rule OptionalCssNmchars() {
-        return ZeroOrMore(FirstOf(WordOrDashChars(), CssNonascii(), CssEscape()));
-    }
+// nmchar   [_a-z0-9-]|{nonascii}|{escape}
+Rule OptionalCssNmchars() {
+    return ZeroOrMore(FirstOf(WordOrDashChars(), CssNonascii(), CssEscape()));
+}
 
-    // nonascii [^\0-\237]
-    Rule CssNonascii() {
-        return Sequence(TestNot(CharRange((char) 0, (char) 237)), ANY);
-    }
+// nonascii [^\0-\237]
+Rule CssNonascii() {
+    return Sequence(TestNot(CharRange((char) 0, (char) 159)), ANY);
+}
 
-    // escape   {unicode}|\\[^\n\r\f0-9a-f]
-    Rule CssEscape() {
-        return Sequence(
-                Test('\\'),  // for performance
-                FirstOf(
-                        CssUnicode(),
-                        Sequence('\\', Sequence(TestNot("\n\r\f"), ANY))
-                )
-        );
-    }
+// escape   {unicode}|\\[^\n\r\f0-9a-f]
+Rule CssEscape() {
+    return Sequence(
+            Test('\\'),  // for performance
+            FirstOf(
+                    CssUnicode(),
+                    Sequence('\\', Sequence(TestNot("\n\r\f"), ANY))
+            )
+    );
+}
 
-    // unicode  \\[0-9a-f]{1,6}(\r\n|[ \n\r\t\f])?
-    Rule CssUnicode() {
-        return Sequence(
-                '\\',
-                HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar()))))),
-                FirstOf("\r\n", AnyOf(" \n\r\t\f"), EMPTY)
-        );
-    }
+// unicode  \\[0-9a-f]{1,6}(\r\n|[ \n\r\t\f])?
+Rule CssUnicode() {
+    return Sequence(
+            '\\',
+            HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar()))))),
+            FirstOf("\r\n", AnyOf(" \n\r\t\f"), EMPTY)
+    );
+}
 
     // num    [0-9]+|[0-9]*\.[0-9]+
     Rule CssNum() {

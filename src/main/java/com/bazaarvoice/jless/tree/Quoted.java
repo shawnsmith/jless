@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.exception.VariableException;
 import com.bazaarvoice.jless.parser.DebugPrinter;
@@ -36,7 +37,7 @@ public class Quoted extends Node {
             StringBuffer buf = new StringBuffer();
             do {
                 String name = "@" + matcher.group(1);
-                Node value = env.lookup(name);
+                Node value = env.getVariable(name);
                 if (value == null) {
                     throw new VariableException("Variable is undefined: " + name);
                 }
@@ -49,11 +50,13 @@ public class Quoted extends Node {
     }
 
     @Override
-    public String toString() {
+    public void printCSS(CssWriter out) {
         if (_escaped) {
-            return _value;
+            out.print(_value);
         } else {
-            return _quote + _value + _quote;
+            out.print(_quote);
+            out.print(_value);
+            out.print(_quote);
         }
     }
 

@@ -3,7 +3,6 @@ package com.bazaarvoice.jless.tree;
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +35,10 @@ public class Block extends NodeWithPosition {
         if (!isEmpty()) {
             List<Node> results = new ArrayList<Node>(_statements.size());
             for (Node statement : _statements) {
-                results.add(statement.eval(env));
+                Node evaluated = statement.eval(env);
+                if (evaluated != null) {
+                    results.add(evaluated);
+                }
             }
             return new Block(getPosition(), _root, results);
         } else {
@@ -68,7 +70,7 @@ public class Block extends NodeWithPosition {
             out.beginScope();
         }
         for (Node statement : _statements) {
-            statement.printCSS(out);
+            out.print(statement);
         }
         if (!_root) {
             out.endScope();
@@ -76,11 +78,6 @@ public class Block extends NodeWithPosition {
             out.print('}');
             out.newline();
         }
-    }
-
-    @Override
-    public String toString() {
-        return (_root ? "" : "{") + StringUtils.join(_statements, "\n") + (_root ? "" : "}");
     }
 
     @Override

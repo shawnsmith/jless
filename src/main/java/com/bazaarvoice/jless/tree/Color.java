@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 //
@@ -70,22 +71,19 @@ public class Color extends Node {
     // Values are capped between `0` and `255`, rounded and zero-padded.
     //
     @Override
-    public String toString() {
+    public void printCSS(CssWriter out) {
         if (_alpha < 1.0) {
             // has alpha, must use rgba(r,g,b,a) function
-            StringBuilder buf = new StringBuilder();
-            buf.append("rgba(");
+            out.print("rgba(");
             for (double c : _rgb) {
-                buf.append(Math.round(c));
-                buf.append(",");
+                out.print(Long.toString(Math.round(c)));
+                out.print(',');
             }
-            buf.append(_alpha);
-            buf.append(')');
-            return buf.toString();
+            out.print(Double.toString(_alpha));
+            out.print(')');
         } else {
             // opaque so use the more compact #rrggbb syntax
-            StringBuilder buf = new StringBuilder();
-            buf.append('#');
+            out.print('#');
             int n = 0;
             for (double c : _rgb) {
                 long i = Math.round(c);
@@ -93,10 +91,9 @@ public class Color extends Node {
             }
             String s = Integer.toHexString(n);
             for (int i = s.length(); i < 6; i++) {
-                buf.append('0');
+                out.print('0');
             }
-            buf.append(s);
-            return buf.toString();
+            out.print(s);
         }
     }
 

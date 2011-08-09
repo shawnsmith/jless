@@ -5,7 +5,6 @@ import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.exception.FunctionException;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 import com.google.common.base.Function;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,11 +15,11 @@ import java.util.List;
 public class Call extends Node {
 
     private final String _name;
-    private final List<Expression> _args;
+    private final List<Expression> _arguments;
 
-    public Call(String name, List<Expression> args) {
+    public Call(String name, List<Expression> arguments) {
         _name = name;
-        _args = args;
+        _arguments = arguments;
     }
 
     //
@@ -37,15 +36,15 @@ public class Call extends Node {
     //
     @Override
     public Node eval(Environment env) {
-        List<Node> args = new ArrayList<Node>(_args.size());
-        for (Node arg : _args) {
-            args.add(arg.eval(env));
+        List<Node> arguments = new ArrayList<Node>(_arguments.size());
+        for (Node arg : _arguments) {
+            arguments.add(arg.eval(env));
         }
 
         Function<List<Node>,Node> function = env.getFunction(_name);
         if (function != null) {
             try {
-                return function.apply(args);
+                return function.apply(arguments);
             } catch (Exception e) {
                 throw new FunctionException("Error evaluating function " + _name + ": " + e);
             }
@@ -53,11 +52,11 @@ public class Call extends Node {
             StringBuilder buf = new StringBuilder();
             buf.append(_name);
             buf.append('(');
-            for (int i = 0; i < args.size(); i++) {
+            for (int i = 0; i < arguments.size(); i++) {
                 if (i > 0) {
                     buf.append(',');
                 }
-                buf.append(args.get(i));
+                buf.append(arguments.get(i));
             }
             buf.append(')');
             return new Anonymous(buf.toString());
@@ -66,16 +65,14 @@ public class Call extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public String toString() {
-        return _name + "(" + StringUtils.join(_args, ", ") + ")";
+        out.print(_name);
+        out.print("(");
+        out.print(_arguments, ",", ", ");
+        out.print(')');
     }
 
     @Override
     public DebugPrinter toDebugPrinter() {
-        return new DebugPrinter("Call", _name, _args);
+        return new DebugPrinter("Call", _name, _arguments);
     }
 }

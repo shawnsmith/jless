@@ -2,7 +2,6 @@ package com.bazaarvoice.jless.tree;
 
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.parser.DebugPrinter;
-import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,13 +41,8 @@ public class Selector extends Node {
     public void printCSS(CssWriter out) {
         for (Element element : _elements) {
             // note: js implementation has a check for typeof(e) === 'string', but it's never true?
-            element.printCSS(out);
+            out.print(element);
         }
-    }
-
-    @Override
-    public String toString() {
-        return StringUtils.join(_elements, "");
     }
 
     @Override

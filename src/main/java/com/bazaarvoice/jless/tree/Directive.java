@@ -47,20 +47,11 @@ public class Directive extends NodeWithPosition {
         out.print(_name);
         out.print(' ');
         if (_rules != null) {
-            _rules.printCSS(out);
+            out.print(_rules);
         } else {
-            _value.printCSS(out);
+            out.print(_value);
             out.print(';');
             out.newline();
-        }
-    }
-
-    @Override
-    public String toString() {
-        if (_ruleset != null) {
-            return _name + " " + _ruleset;
-        } else {
-            return _name + " " + _value + ";";
         }
     }
 
