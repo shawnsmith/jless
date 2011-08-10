@@ -36,7 +36,9 @@ public class Block extends Node {
         if (isEmpty()) {
             return this;
         }
+
         Environment localEnv = env.extend(this);
+
         List<Node> results = new ArrayList<Node>(_statements.size());
         for (Node statement : _statements) {
             Node evaluated = statement.eval(localEnv);
