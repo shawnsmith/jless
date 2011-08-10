@@ -202,7 +202,7 @@ public class Functions {
 
     private static final Pattern INTERPOLATION = Pattern.compile("%[sda]", Pattern.CASE_INSENSITIVE);
 
-    @Less("%")
+    @Less(name="%")
     public Quoted interpolate(Node node, Node... args) {
         String string = node.getStringValue();
 

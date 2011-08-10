@@ -28,7 +28,7 @@ public class FunctionImpl implements Function<List<Node>, Node> {
             return null;
         }
 
-        String name = !"".equals(less.value()) ? less.value() : method.getName();
+        String name = !"".equals(less.name()) ? less.name() : method.getName();
 
         List<Function<Node, ?>> argAdapters = new ArrayList<Function<Node, ?>>(method.getParameterAnnotations().length);
         for (Annotation[] argAnnotations : method.getParameterAnnotations()) {
