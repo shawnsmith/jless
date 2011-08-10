@@ -12,7 +12,7 @@ public class Combinator extends Node {
     }
 
     @Override
-    public String getValue() {
+    public String getStringValue() {
         return _value;
     }
 

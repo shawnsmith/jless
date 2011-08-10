@@ -18,7 +18,7 @@ public class ImportFile extends NodeWithPosition {
         _location = location;
         String path;
         if (location instanceof Quoted) {
-            path = ((Quoted) location).getValue();
+            path = ((Quoted) location).getStringValue();
             if (!(path.endsWith(".less") || path.endsWith(".css"))) {
                 path = path + ".less";
             }
@@ -37,7 +37,8 @@ public class ImportFile extends NodeWithPosition {
             return new ImportFile(getPosition(), _location.eval(env));
         } else {
             // todo: evaluate the less file referenced by the import
-            throw new UnsupportedOperationException();
+//            throw new UnsupportedOperationException();
+            return null;
         }
     }
 

@@ -24,7 +24,6 @@ public class Rule extends NodeWithPosition {
         return _name;
     }
 
-    @Override
     public Value getValue() {
         return _value;
     }

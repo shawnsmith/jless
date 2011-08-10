@@ -25,9 +25,17 @@ public class Dimension extends Node {
         this(Double.parseDouble(value), unit);
     }
 
-    @Override
-    public Double getValue() {
+    public double getValue() {
         return _value;
+    }
+
+    @Override
+    public String getStringValue() {
+        String string = Double.toString(_value);
+        if (string.endsWith(".0")) {
+            string = string.substring(0, string.length() - 2);
+        }
+        return string;
     }
 
     public String getUnit() {
@@ -41,11 +49,7 @@ public class Dimension extends Node {
 
     @Override
     public void printCSS(CssWriter out) {
-        String string = Double.toString(_value);
-        if (string.endsWith(".0")) {
-            string = string.substring(0, string.length() - 2);
-        }
-        out.print(string);
+        out.print(getStringValue());
         out.print(_unit);
     }
 

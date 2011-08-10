@@ -13,8 +13,8 @@ public class Alpha extends Node {
     }
 
     @Override
-    public Node getValue() {
-        return _value;
+    public String getStringValue() {
+        return _value.getStringValue();
     }
 
     @Override

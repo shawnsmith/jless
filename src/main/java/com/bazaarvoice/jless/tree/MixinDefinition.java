@@ -19,14 +19,17 @@ public class MixinDefinition extends Ruleset {
         super(position, new Selector(new Element("", name)), rules);
         _name = name;
         _parameters = parameters;
+        _numRequired = countRequiredParameters(parameters);
+    }
 
+    private int countRequiredParameters(List<MixinDefinitionParameter> parameters) {
         int numRequired = 0;
         for (MixinDefinitionParameter parameter : parameters) {
             if (parameter.getName() == null || parameter.getValue() == null) {
                 numRequired++;
             }
         }
-        _numRequired = numRequired;
+        return numRequired;
     }
 
     @Override
@@ -81,6 +84,7 @@ public class MixinDefinition extends Ruleset {
     @Override
     public void printCSS(CssWriter out) {
         // for debugging only--MixinDefinitions are eval'ed away during normal use
+        out.indent(this);
         out.print(_name);
         out.print(" (");
         out.print(_parameters, ",", ", ");

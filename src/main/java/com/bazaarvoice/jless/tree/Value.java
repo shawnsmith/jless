@@ -21,11 +21,6 @@ public class Value extends Node {
     }
 
     @Override
-    public List<Node> getValue() {
-        return _value;
-    }
-
-    @Override
     public Node eval(Environment env) {
         if (_value.size() > 1) {
             List<Node> results = new ArrayList<Node>(_value.size());

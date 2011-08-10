@@ -26,7 +26,7 @@ public class Quoted extends Node {
     }
 
     @Override
-    public String getValue() {
+    public String getStringValue() {
         return _value;
     }
 
@@ -41,7 +41,7 @@ public class Quoted extends Node {
                 if (value == null) {
                     throw new VariableException("Variable is undefined: " + name);
                 }
-                matcher.appendReplacement(buf, value.toString());
+                matcher.appendReplacement(buf, value.getStringValue());
             } while (matcher.find());
             matcher.appendTail(buf);
             return new Quoted(_quote, buf.toString(), _escaped);

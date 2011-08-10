@@ -814,7 +814,7 @@ public class Parser extends BaseParser<Node> {
                                 // javascript regular expression: /^[^{]+/
                                 ZeroOrMore(TestNot('{'), ANY), types.set(match().trim()),
                                 Block(),
-                                push(new Directive(startIndex.get(), name.get() + " " + types.get(), (Block) pop()))
+                                push(new Directive(startIndex.get(), name.get() + " " + types.get(), pop()))
                         ),
                         Sequence(
                                 '@', AlphaOrDashChars(), name.set("@" + match()),
@@ -823,7 +823,7 @@ public class Parser extends BaseParser<Node> {
                                         Sequence(
                                                 "@font-face".equals(name.get()),
                                                 Block(),
-                                                push(new Directive(startIndex.get(), name.get(), (Block) pop()))
+                                                push(new Directive(startIndex.get(), name.get(), pop()))
                                         ),
                                         Sequence(
                                                 !"@font-face".equals(name.get()),

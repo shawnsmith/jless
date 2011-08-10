@@ -7,14 +7,16 @@ import com.bazaarvoice.jless.parser.DebugPrinter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class Block extends Node {
 
     private final List<Node> _statements;
     private Map<String, Node> _variables;
-    private List<Ruleset> _rulesets;
+    private Map<String, Set<Ruleset>> _rulesets;
     private Map<List<Element>, List<Closure>> _lookups;
 
     public Block(List<Node> statements) {
@@ -95,18 +97,6 @@ public class Block extends Node {
         return _variables;
     }
 
-    public List<Ruleset> getRulesets() {
-        if (_rulesets == null) {
-            _rulesets = new ArrayList<Ruleset>();
-            for (Node statement : _statements) {
-                if (statement instanceof Ruleset) {
-                    _rulesets.add((Ruleset) statement);
-                }
-            }
-        }
-        return _rulesets;
-    }
-
     public List<Closure> getClosures(List<Element> elements) {
         if (_lookups == null) {
             _lookups = new HashMap<List<Element>, List<Closure>>();
@@ -114,15 +104,13 @@ public class Block extends Node {
         List<Closure> closures = _lookups.get(elements);
         if (closures == null) {
             closures = new ArrayList<Closure>();
-            for (Ruleset ruleset : getRulesets()) {
-                for (Selector selector : ruleset.getSelectors()) {
-                    if (elements.get(0).getValue().equals(selector.getElements().get(0).getValue())) {
-                        if (elements.size() > 1) {
-                            closures.addAll(ruleset.getRules().getClosures(elements.subList(1, elements.size())));
-                        } else {
-                            closures.add(ruleset);
-                        }
-                        break;
+            Set<Ruleset> rulesets = getRulesets().get(elements.get(0).getStringValue());
+            if (rulesets != null) {
+                for (Ruleset ruleset : rulesets) {
+                    if (elements.size() > 1) {
+                        closures.addAll(ruleset.getRules().getClosures(elements.subList(1, elements.size())));
+                    } else {
+                        closures.add(ruleset);
                     }
                 }
             }
@@ -131,4 +119,25 @@ public class Block extends Node {
         return closures;
     }
 
+    private Map<String, Set<Ruleset>> getRulesets() {
+        if (_rulesets == null) {
+            _rulesets = new HashMap<String, Set<Ruleset>>();
+            for (Node statement : _statements) {
+                if (statement instanceof Ruleset) {
+                    Ruleset ruleset = (Ruleset) statement;
+                    for (Selector selector : ruleset.getSelectors()) {
+                        String name = selector.getElements().get(0).getStringValue();
+
+                        Set<Ruleset> rulesets = _rulesets.get(name);
+                        if (rulesets == null) {
+                            rulesets = new LinkedHashSet<Ruleset>(); // maintain order so initial rules take precedence over later rules
+                            _rulesets.put(name, rulesets);
+                        }
+                        rulesets.add(ruleset);
+                    }
+                }
+            }
+        }
+        return _rulesets;
+    }
 }

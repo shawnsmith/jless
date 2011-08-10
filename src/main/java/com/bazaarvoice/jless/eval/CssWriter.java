@@ -21,6 +21,10 @@ public class CssWriter {
         _inputBuffer = compress ? null : inputBuffer;  // the input buffer is ignored if compressing whitespace
     }
 
+    public CssWriter subWriter() {
+        return new CssWriter(_compress, null);  // preserve the compress setting but don't try to preserve line numbers
+    }
+
     public boolean isCompressionEnabled() {
         return _compress;
     }

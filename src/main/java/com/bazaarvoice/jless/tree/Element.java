@@ -22,7 +22,7 @@ public class Element extends Node {
     }
 
     @Override
-    public String getValue() {
+    public String getStringValue() {
         return _value;
     }
 

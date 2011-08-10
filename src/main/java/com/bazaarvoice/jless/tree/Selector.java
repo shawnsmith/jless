@@ -26,9 +26,9 @@ public class Selector extends Node {
         if (elements.isEmpty()) {
             throw new IllegalArgumentException();
         }
-        if ("".equals(elements.get(0).getCombinator().getValue())) {
+        if ("".equals(elements.get(0).getCombinator().getStringValue())) {
             elements = new ArrayList<Element>(elements);
-            elements.set(0, new Element(" ", elements.get(0).getValue()));
+            elements.set(0, new Element(" ", elements.get(0).getStringValue()));
         }
         _elements = elements;
     }

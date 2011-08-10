@@ -21,7 +21,7 @@ public class Variable extends Node {
     public Node eval(Environment env) {
         String name = _name;
         if (name.startsWith("@@")) {
-            name = "@" + new Variable(name.substring(1)).eval(env).getValue().toString();
+            name = "@" + new Variable(name.substring(1)).eval(env).getStringValue();
         }
         Node value = env.getVariable(name);
         if (value == null) {

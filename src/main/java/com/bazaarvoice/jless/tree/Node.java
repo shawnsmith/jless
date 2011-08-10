@@ -8,10 +8,6 @@ import java.util.List;
 
 public abstract class Node {
 
-    public Object getValue() {
-        throw new UnsupportedOperationException(getClass().getName());
-    }
-
     public Node eval(Environment env) {
         return this;
     }
@@ -21,6 +17,10 @@ public abstract class Node {
     }
 
     public abstract void printCSS(CssWriter out);
+
+    public String getStringValue() {
+        return toString();
+    }
 
     @Override
     public String toString() {

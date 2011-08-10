@@ -11,7 +11,7 @@ public class Keyword extends Node {
     }
 
     @Override
-    public String getValue() {
+    public String getStringValue() {
         return _value;
     }
 

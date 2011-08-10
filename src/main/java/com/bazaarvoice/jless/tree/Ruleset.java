@@ -71,45 +71,6 @@ public class Ruleset extends NodeWithPosition implements Closure {
         return null;
     }
 
-    @Override
-    public void printCSS(CssWriter out) {
-        out.indent(this);
-        for (int i = 0; i < _selectors.size(); i++) {
-            if (i > 0) {
-                out.print(',');
-                if (!out.isCompressionEnabled()) {
-                    if (_selectors.size() > 3) {
-                        out.newline();
-                        out.indent(this);
-                    } else {
-                        out.print(' ');
-                    }
-                }
-            }
-            out.print(_selectors.get(i).toString().trim());
-        }
-        if (!out.isCompressionEnabled()) {
-            out.print(' ');
-        }
-        printRules(out);
-    }
-
-    protected void printRules(CssWriter out) {
-        out.print('{');
-        out.newline();
-        out.beginScope();
-        out.print(_rules);
-        out.endScope();
-        out.indent(this);
-        out.print('}');
-        out.newline();
-    }
-
-    @Override
-    public DebugPrinter toDebugPrinter() {
-        return new DebugPrinter("Ruleset", _selectors, _rules);
-    }
-
     private List<Selector> joinSelectors(List<Selector> contexts, List<Selector> selectors) {
         List<Selector> results = new ArrayList<Selector>();
         for (Selector selector : selectors) {
@@ -118,7 +79,7 @@ public class Ruleset extends NodeWithPosition implements Closure {
 
             boolean hasParentSelector = false;
             for (Element element : selector.getElements()) {
-                if (element.getCombinator().getValue().startsWith("&")) {
+                if (element.getCombinator().getStringValue().startsWith("&")) {
                     hasParentSelector = true;
                 }
                 (hasParentSelector ? afterElements : beforeElements).add(element);
@@ -142,5 +103,46 @@ public class Ruleset extends NodeWithPosition implements Closure {
             }
         }
         return results;
+    }
+
+    @Override
+    public void printCSS(CssWriter out) {
+        out.indent(this);
+        for (int i = 0; i < _selectors.size(); i++) {
+            if (i > 0) {
+                out.print(',');
+                if (!out.isCompressionEnabled()) {
+                    if (_selectors.size() > 3) {
+                        out.newline();
+                        out.indent(this);
+                    } else {
+                        out.print(' ');
+                    }
+                }
+            }
+            CssWriter sub = out.subWriter();
+            sub.print(_selectors.get(i));
+            out.print(sub.toString().trim());
+        }
+        if (!out.isCompressionEnabled()) {
+            out.print(' ');
+        }
+        printRules(out);
+    }
+
+    protected void printRules(CssWriter out) {
+        out.print('{');
+        out.newline();
+        out.beginScope();
+        out.print(_rules);
+        out.endScope();
+        out.indent(this);
+        out.print('}');
+        out.newline();
+    }
+
+    @Override
+    public DebugPrinter toDebugPrinter() {
+        return new DebugPrinter("Ruleset", _selectors, _rules);
     }
 }
