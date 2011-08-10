@@ -22,17 +22,31 @@ public class Coercions {
         }
     };
 
-    public static double value(Node node) {
+    public static double numberValue(Node node) {
         if (node instanceof Dimension) {
             return ((Dimension) node).getValue();
         }
         throw new FunctionException("Color functions take numbers as parameters: " + node);
     }
 
-    public static final Function<Node, Double> VALUE_ADAPTER = new Function<Node, Double>() {
+    public static final Function<Node, Double> NUMBER_VALUE_ADAPTER = new Function<Node, Double>() {
         @Override
         public Double apply(Node node) {
-            return value(node);
+            return numberValue(node);
+        }
+    };
+
+    public static final Function<Node, String> STRING_ADAPTER = new Function<Node, String>() {
+        @Override
+        public String apply(Node node) {
+            return node.toString();
+        }
+    };
+
+    public static final Function<Node, String> STRING_VALUE_ADAPTER = new Function<Node, String>() {
+        @Override
+        public String apply(Node node) {
+            return node.getStringValue();
         }
     };
 }

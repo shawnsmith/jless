@@ -1,22 +1,19 @@
 package com.bazaarvoice.jless.eval;
 
-import com.bazaarvoice.jless.eval.annotations.Less;
-import com.bazaarvoice.jless.eval.annotations.Number;
-import com.bazaarvoice.jless.eval.annotations.Value;
-import com.bazaarvoice.jless.exception.VariableException;
+import com.bazaarvoice.jless.eval.annotations.LessFunction;
+import com.bazaarvoice.jless.eval.annotations.NumberValue;
+import com.bazaarvoice.jless.eval.annotations.StringValue;
 import com.bazaarvoice.jless.tree.Anonymous;
 import com.bazaarvoice.jless.tree.Color;
 import com.bazaarvoice.jless.tree.Dimension;
 import com.bazaarvoice.jless.tree.Node;
 import com.bazaarvoice.jless.tree.Quoted;
 import com.google.common.base.Function;
-import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.net.URLEncoder;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,18 +42,18 @@ public class Functions {
         return map;
     }
 
-    @Less
-    public Color rgb(@Number double r, @Number double g, @Number double b) {
+    @LessFunction
+    public Color rgb(double r, double g, double b) {
         return rgba(r, g, b, 1.0);
     }
 
-    @Less
-    public Color rgba(@Number double r, @Number double g, @Number double b, @Number double a) {
+    @LessFunction
+    public Color rgba(double r, double g, double b, double a) {
         return new Color(r, g, b, a);
     }
 
-    @Less
-    public Color hsl(@Number double h, @Number double s, @Number double l) {
+    @LessFunction
+    public Color hsl(double h, double s, double l) {
         return hsla(h, s, l, 1.0);
     }
 
@@ -64,8 +61,8 @@ public class Functions {
         return hsla(hsl.h, hsl.s, hsl.l, hsl.a);
     }
 
-    @Less
-    public Color hsla(@Number double h, @Number double s, @Number double l, @com.bazaarvoice.jless.eval.annotations.Number double a) {
+    @LessFunction
+    public Color hsla(double h, double s, double l, double a) {
         h = (h % 360) / 360;
 
         double m2 = l <= 0.5 ? l * (s + 1) : l + s - l * s;
@@ -86,76 +83,76 @@ public class Functions {
         else                return m1;
     }
 
-    @Less
+    @LessFunction
     public Dimension hue(Color color) {
         return new Dimension(Math.round(color.toHSL().h));
     }
 
-    @Less
+    @LessFunction
     public Dimension saturation(Color color) {
         return new Dimension(Math.round(color.toHSL().s * 100), "%");
     }
 
-    @Less
+    @LessFunction
     public Dimension lightness(Color color) {
         return new Dimension(Math.round(color.toHSL().l * 100), "%");
     }
 
-    @Less
+    @LessFunction
     public Dimension alpha(Color color) {
         return new Dimension(color.getAlpha());
     }
 
-    @Less
-    public Color saturate(Color color, @Value double amount) {
+    @LessFunction
+    public Color saturate(Color color, @NumberValue double amount) {
         Color.HSL hsl = color.toHSL();
         hsl.s += amount / 100;
         hsl.s = clamp(hsl.s);
         return hsla(hsl);
     }
 
-    @Less
-    public Color desaturate(Color color, @Value double amount) {
+    @LessFunction
+    public Color desaturate(Color color, @NumberValue double amount) {
         Color.HSL hsl = color.toHSL();
         hsl.s -= amount / 100;
         hsl.s = clamp(hsl.s);
         return hsla(hsl);
     }
 
-    @Less
-    public Color lighten(Color color, @Value double amount) {
+    @LessFunction
+    public Color lighten(Color color, @NumberValue double amount) {
         Color.HSL hsl = color.toHSL();
         hsl.l += amount / 100;
         hsl.l = clamp(hsl.l);
         return hsla(hsl);
     }
 
-    @Less
-    public Color darken(Color color, @Value double amount) {
+    @LessFunction
+    public Color darken(Color color, @NumberValue double amount) {
         Color.HSL hsl = color.toHSL();
         hsl.l -= amount / 100;
         hsl.l = clamp(hsl.l);
         return hsla(hsl);
     }
 
-    @Less
-    public Color fadein(Color color, @Value double amount) {
+    @LessFunction
+    public Color fadein(Color color, @NumberValue double amount) {
         Color.HSL hsl = color.toHSL();
         hsl.a += amount / 100;
         hsl.a = clamp(hsl.a);
         return hsla(hsl);
     }
 
-    @Less
-    public Color fadeout(Color color, @Value double amount) {
+    @LessFunction
+    public Color fadeout(Color color, @NumberValue double amount) {
         Color.HSL hsl = color.toHSL();
         hsl.a -= amount / 100;
         hsl.a = clamp(hsl.a);
         return hsla(hsl);
     }
 
-    @Less
-    public Color spin(Color color, @Value double amount) {
+    @LessFunction
+    public Color spin(Color color, @NumberValue double amount) {
         Color.HSL hsl = color.toHSL();
         double hue = (hsl.h + amount) % 360;
         hsl.h = hue < 0 ? 360 + hue : hue;
@@ -166,8 +163,8 @@ public class Functions {
     // Copyright (c) 2006-2009 Hampton Catlin, Nathan Weizenbaum, and Chris Eppstein
     // http://sass-lang.com
     //
-    @Less
-    public Color mix(Color color1, Color color2, @Value double weight) {
+    @LessFunction
+    public Color mix(Color color1, Color color2, @NumberValue double weight) {
         double p = weight / 100.0;
         double w = p * 2 - 1;
         double a = color1.toHSL().a - color2.toHSL().a;
@@ -185,27 +182,25 @@ public class Functions {
         );
     }
 
-    @Less
+    @LessFunction
     public Color greyscale(Color color) {
         return desaturate(color, 100);
     }
 
-    @Less
-    public Anonymous e(Node node) {
-        return new Anonymous(node.getStringValue());
+    @LessFunction
+    public Anonymous e(@StringValue String string) {
+        return new Anonymous(string);
     }
 
-    @Less
-    public Anonymous escape(Node node) {
-        return new Anonymous(encodeURIComponent(node.getStringValue()));
+    @LessFunction
+    public Anonymous escape(@StringValue String string) {
+        return new Anonymous(encodeURIComponent(string));
     }
 
     private static final Pattern INTERPOLATION = Pattern.compile("%[sda]", Pattern.CASE_INSENSITIVE);
 
-    @Less(name="%")
-    public Quoted interpolate(Node node, Node... args) {
-        String string = node.getStringValue();
-
+    @LessFunction(name="%")
+    public Quoted interpolate(@StringValue String string, Node... args) {
         StringBuffer buf = new StringBuffer();
         Matcher matcher = INTERPOLATION.matcher(string);
         for (Node arg : args) {
@@ -223,7 +218,7 @@ public class Functions {
         return new Quoted('"', string, false);
     }
 
-    @Less
+    @LessFunction
     public Dimension round(Dimension dim) {
         return new Dimension(Math.round(dim.getValue()), dim.getUnit());
     }

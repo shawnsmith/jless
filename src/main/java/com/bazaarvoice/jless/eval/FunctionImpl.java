@@ -1,8 +1,8 @@
 package com.bazaarvoice.jless.eval;
 
-import com.bazaarvoice.jless.eval.annotations.Less;
-import com.bazaarvoice.jless.eval.annotations.Number;
-import com.bazaarvoice.jless.eval.annotations.Value;
+import com.bazaarvoice.jless.eval.annotations.LessFunction;
+import com.bazaarvoice.jless.eval.annotations.NumberValue;
+import com.bazaarvoice.jless.eval.annotations.StringValue;
 import com.bazaarvoice.jless.exception.FunctionException;
 import com.bazaarvoice.jless.tree.Node;
 import com.google.common.base.Function;
@@ -23,16 +23,18 @@ public class FunctionImpl implements Function<List<Node>, Node> {
     private final Class _varargType;
 
     public static FunctionImpl wrap(Object instance, Method method) {
-        Less less = getLessAnnotation(method);
+        LessFunction less = getLessAnnotation(method);
         if (less == null) {
             return null;
         }
 
         String name = !"".equals(less.name()) ? less.name() : method.getName();
 
-        List<Function<Node, ?>> argAdapters = new ArrayList<Function<Node, ?>>(method.getParameterAnnotations().length);
-        for (Annotation[] argAnnotations : method.getParameterAnnotations()) {
-            argAdapters.add(getArgAdapter(argAnnotations));
+        Class<?>[] parameterTypes = method.getParameterTypes();
+        Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+        List<Function<Node, ?>> argAdapters = new ArrayList<Function<Node, ?>>(parameterAnnotations.length);
+        for (int i = 0; i < parameterTypes.length; i++) {
+            argAdapters.add(getArgAdapter(parameterTypes[i], parameterAnnotations[i]));
         }
 
         return new FunctionImpl(instance, method, name, argAdapters);
@@ -46,25 +48,37 @@ public class FunctionImpl implements Function<List<Node>, Node> {
         _varargType = _method.isVarArgs() ? _method.getParameterTypes()[argAdapters.size() - 1].getComponentType() : null;
     }
 
-    private static Less getLessAnnotation(Method method) {
+    private static LessFunction getLessAnnotation(Method method) {
         for (Annotation annotation : method.getAnnotations()) {
-            if (annotation instanceof Less) {
-                return (Less) annotation;
+            if (annotation instanceof LessFunction) {
+                return (LessFunction) annotation;
             }
         }
         return null;
     }
 
-    private static Function<Node, ?> getArgAdapter(Annotation[] annotations) {
+    private static Function<Node, ?> getArgAdapter(Class<?> type, Annotation[] annotations) {
+        if (type.isArray()) {
+            type = type.getComponentType();
+        }
         for (Annotation annotation : annotations) {
-            if (annotation instanceof Number) {
-                return Coercions.NUMBER_ADAPTER;
+            if (annotation instanceof NumberValue) {
+                return Coercions.NUMBER_VALUE_ADAPTER;
             }
-            if (annotation instanceof Value) {
-                return Coercions.VALUE_ADAPTER;
+            if (annotation instanceof StringValue) {
+                return Coercions.STRING_VALUE_ADAPTER;
             }
         }
-        return null;
+        if (type == Double.class || type == Double.TYPE) {
+            return Coercions.NUMBER_ADAPTER;
+        }
+        if (type == String.class) {
+            return Coercions.STRING_ADAPTER;
+        }
+        if (!Node.class.isAssignableFrom(type)) {
+            throw new IllegalArgumentException(type.toString());
+        }
+        return null;  // no coercion necessary
     }
 
     public String getName() {
