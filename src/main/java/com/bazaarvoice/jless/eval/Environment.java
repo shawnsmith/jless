@@ -1,5 +1,7 @@
 package com.bazaarvoice.jless.eval;
 
+import com.bazaarvoice.jless.tree.Block;
+import com.bazaarvoice.jless.tree.Closure;
 import com.bazaarvoice.jless.tree.Element;
 import com.bazaarvoice.jless.tree.Node;
 import com.bazaarvoice.jless.tree.Ruleset;
@@ -9,11 +11,11 @@ import java.util.List;
 
 public interface Environment {
 
-    Environment extend(Ruleset ruleset);
-
-    Node getVariable(String variable);
+    Environment extend(Block frame);
 
     Function<List<Node>, Node> getFunction(String name);
 
-    List<Ruleset> getRulesets(List<Element> elements);
+    Node getVariable(String variable);
+
+    List<Closure> getClosures(List<Element> elements);
 }

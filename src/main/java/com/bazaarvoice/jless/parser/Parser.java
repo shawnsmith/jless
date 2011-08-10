@@ -83,12 +83,9 @@ public class Parser extends BaseParser<Node> {
     // ********** Document **********
 
     public Rule Document() {
-        Var<Integer> startIndex = new Var<Integer>();
         return Sequence(
-                startIndex.set(currentIndex()),
-                Primary(true),
-                EOI,
-                push(new Ruleset(startIndex.get(), (Block) pop()))
+                Primary(),
+                EOI
         );
     }
 
@@ -107,7 +104,7 @@ public class Parser extends BaseParser<Node> {
     // Only at one point is the primary rule not called from the
     // block rule: at the root level.
     //
-    Rule Primary(boolean root) {
+    Rule Primary() {
         Var<Integer> startIndex = new Var<Integer>();
         Var<List<Node>> statements = new Var<List<Node>>();
         return Sequence(
@@ -128,7 +125,7 @@ public class Parser extends BaseParser<Node> {
                                 Spacing()
                         )
                 ),
-                push(new Block(startIndex.get(), root, statements.get()))
+                push(new Block(statements.get()))
             );
     }
 
@@ -705,7 +702,7 @@ public class Parser extends BaseParser<Node> {
     Rule Block() {
         return Sequence(
                 Terminal('{'),
-                Primary(false),
+                Primary(),
                 Terminal('}')
         );
     }

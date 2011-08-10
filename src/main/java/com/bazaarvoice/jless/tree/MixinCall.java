@@ -21,8 +21,8 @@ public class MixinCall extends Node {
 
     @Override
     public Node eval(Environment env) {
-        List<Ruleset> rulesets = env.getRulesets(_selector.getElements());
-        if (rulesets.isEmpty()) {
+        List<Closure> closures = env.getClosures(_selector.getElements());
+        if (closures.isEmpty()) {
             throw new UndefinedMixinException(_selector.toString().trim() + " is undefined");
         }
 
@@ -33,9 +33,9 @@ public class MixinCall extends Node {
 
         List<Node> results = new ArrayList<Node>();
         boolean match = false;
-        for (Ruleset ruleset : rulesets) {
-            if (ruleset.match(arguments, env)) {
-                results.addAll(ruleset.eval(env, arguments).rules);
+        for (Closure closure : closures) {
+            if (closure.match(arguments, env)) {
+                results.addAll(closure.apply(arguments, env).getStatements());
                 match = true;
             }
         }
@@ -43,7 +43,7 @@ public class MixinCall extends Node {
             throw new UndefinedMixinException("No matching definition was found for `" + _selector.toString().trim() + "(" + StringUtils.join(arguments, ", ") + ")");
         }
 
-        return !results.isEmpty() ? new Block(0, false, results) : null;
+        return new Block(results);
     }
 
     @Override

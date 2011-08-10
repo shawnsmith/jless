@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.AppendEnvironment;
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.exception.UndefinedMixinException;
@@ -29,36 +30,38 @@ public class MixinDefinition extends Ruleset {
     }
 
     @Override
-    public Node eval(Environment env) {
+    public Ruleset eval(Environment env) {
+        setLexicalEnvironment(env);
         return null;
     }
 
     @Override
-    public List<Node> eval(Environment env, List<Node> arguments) {
+    public Block apply(List<Node> arguments, Environment dynamicEnvironment) {
+        List<Node> rules = new ArrayList<Node>();
         for (int i = 0; i < _parameters.size(); i++) {
-            Variable name = _parameters.get(i).getName();
+            MixinDefinitionParameter parameter = _parameters.get(i);
+            Variable name = parameter.getName();
             if (name != null) {
-                Node val = (i < arguments.size()) ? arguments.get(i) : _parameters.get(i).getValue();
+                Node val = (i < arguments.size()) ? arguments.get(i) : parameter.getValue();
                 if (val == null) {
                     throw new UndefinedMixinException("Wrong number of arguments for " + _name + " (" + arguments.size() + " for " + _parameters.size());
                 }
-                frame.rules.unshift(new(tree.Rule)(this.params[i].name, val.eval(env)));
+                rules.add(new Rule(0, parameter.getName(), val.eval(dynamicEnvironment), false));
             }
         }
 
+        // create a special '@arguments' variable for vararg-style use
         List<Node> argumentsValue = new ArrayList<Node>();
         for (int i = 0; i < Math.max(_parameters.size(), arguments.size()); i++) {
             argumentsValue.add((i < arguments.size()) ? arguments.get(i) : _parameters.get(i).getValue());
         }
-        frame.rules.unshift(new(tree.Rule)('@arguments', new(tree.Expression)(_arguments).eval(env)));
+        rules.add(new Rule(0, new Variable("@arguments"), new Expression(argumentsValue).eval(dynamicEnvironment), false));
 
-        getRules().eval(env.extend(frame).extend(this));  // lexical freaking scoping!
-
-        return new(tree.Ruleset)(null, this.rules.slice(0)).eval({
-            frames: [this, frame].concat(this.frames, env.frames)
-        });
+        // less uses a weird hybrid of lexical and dynamic scoping.
+        return getRules().eval(new AppendEnvironment(getLexicalEnvironment().extend(new Block(rules)), dynamicEnvironment));
     }
 
+    @Override
     public boolean match(List<Node> arguments, Environment env) {
         int argsLength = arguments.size();
         if (argsLength < _numRequired || (_numRequired > 0 && argsLength > _parameters.size())) {
@@ -77,11 +80,12 @@ public class MixinDefinition extends Ruleset {
 
     @Override
     public void printCSS(CssWriter out) {
+        // for debugging only--MixinDefinitions are eval'ed away during normal use
         out.print(_name);
         out.print(" (");
         out.print(_parameters, ",", ", ");
         out.print(") ");
-        out.print(getRules());
+        printRules(out);
     }
 
     @Override

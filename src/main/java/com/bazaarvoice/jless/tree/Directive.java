@@ -4,18 +4,18 @@ import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
+import java.util.Collections;
+
 public class Directive extends NodeWithPosition {
 
     private final String _name;
     private final Block _rules;
-    private final Ruleset _ruleset;
     private final Node _value;
 
     public Directive(int position, String name, Block rules) {
         super(position);
         _name = name;
         _rules = rules;
-        _ruleset = new Ruleset(position, rules);
         _value = null;
     }
 
@@ -23,7 +23,6 @@ public class Directive extends NodeWithPosition {
         super(position);
         _name = name;
         _rules = null;
-        _ruleset = null;
         _value = value;
     }
 
@@ -47,7 +46,10 @@ public class Directive extends NodeWithPosition {
         out.print(_name);
         out.print(' ');
         if (_rules != null) {
+            out.print('{');
+
             out.print(_rules);
+            out.print('}');
         } else {
             out.print(_value);
             out.print(';');
@@ -57,7 +59,7 @@ public class Directive extends NodeWithPosition {
 
     @Override
     public DebugPrinter toDebugPrinter() {
-        return new DebugPrinter("Directive", _name, _ruleset != null ? _ruleset : _value);
+        return new DebugPrinter("Directive", _name, _rules != null ? _rules : _value);
     }
 /*
     tree.Directive.prototype = {

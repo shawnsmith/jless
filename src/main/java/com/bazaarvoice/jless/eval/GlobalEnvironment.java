@@ -1,8 +1,9 @@
 package com.bazaarvoice.jless.eval;
 
+import com.bazaarvoice.jless.tree.Block;
+import com.bazaarvoice.jless.tree.Closure;
 import com.bazaarvoice.jless.tree.Element;
 import com.bazaarvoice.jless.tree.Node;
-import com.bazaarvoice.jless.tree.Ruleset;
 import com.google.common.base.Function;
 
 import java.util.Collections;
@@ -18,13 +19,8 @@ public class GlobalEnvironment implements Environment {
     }
 
     @Override
-    public Environment extend(Ruleset ruleset) {
-        return new LocalEnvironment(this, ruleset);
-    }
-
-    @Override
-    public Node getVariable(String variable) {
-        return null;
+    public Environment extend(Block frame) {
+        return new LocalEnvironment(this, frame);
     }
 
     @Override
@@ -33,7 +29,12 @@ public class GlobalEnvironment implements Environment {
     }
 
     @Override
-    public List<Ruleset> getRulesets(List<Element> elements) {
+    public Node getVariable(String variable) {
+        return null;
+    }
+
+    @Override
+    public List<Closure> getClosures(List<Element> elements) {
         return Collections.emptyList();
     }
 }

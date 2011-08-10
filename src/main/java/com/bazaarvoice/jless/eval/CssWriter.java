@@ -78,8 +78,8 @@ public class CssWriter {
     }
 
     public void newline() {
-        _buf.append('\n');
         if (!_compress) {
+            _buf.append('\n');
             _numLines++;
         }
     }

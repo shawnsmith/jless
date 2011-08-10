@@ -1,28 +1,18 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.eval.AppendEnvironment;
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-public class Ruleset extends NodeWithPosition {
+public class Ruleset extends NodeWithPosition implements Closure {
     private final List<Selector> _selectors;
     private final Block _rules;
-    private Map<String, Node> _variables;
-    private List<Ruleset> _rulesets;
-    private Map<List<Element>, List<Ruleset>> _lookups = new HashMap<List<Element>, List<Ruleset>>();
-
-    public Ruleset(int position, Block rules) {
-        this(position, new Selector(true), rules);
-        if (!rules.isRoot()) {
-            throw new IllegalStateException();
-        }
-    }
+    private Environment _lexicalEnvironment;
 
     public Ruleset(int position, Selector selector, Block rules) {
         this(position, Collections.singletonList(selector), rules);
@@ -34,10 +24,6 @@ public class Ruleset extends NodeWithPosition {
         _rules = rules;
     }
 
-    public boolean isRoot() {
-        return _rules.isRoot();
-    }
-
     public List<Selector> getSelectors() {
         return _selectors;
     }
@@ -46,21 +32,31 @@ public class Ruleset extends NodeWithPosition {
         return _rules;
     }
 
-    @Override
-    public Node eval(Environment env) {
-        Environment localEnv = env.extend(this);
-        Block rules = _rules.eval(localEnv);
-        if (isRoot()) {
-            List<Node> flattenedRulesets = new ArrayList<Node>();
-            rules.flatten(_selectors, flattenedRulesets);
-            return new Ruleset(getPosition(), new Block(getPosition(), true, flattenedRulesets));
-        } else {
-            return new Ruleset(getPosition(), _selectors, rules);
-        }
+    public Environment getLexicalEnvironment() {
+        return _lexicalEnvironment;
     }
 
-    public Node eval(Environment env, List<Node> arguments) {
-        return eval(env);
+    protected void setLexicalEnvironment(Environment env) {
+        if (_lexicalEnvironment != null) {
+            throw new IllegalStateException();  // setter may not be called multiple times
+        }
+        _lexicalEnvironment = env;
+    }
+
+    @Override
+    public Ruleset eval(Environment env) {
+        setLexicalEnvironment(env);
+        return new Ruleset(getPosition(), _selectors, _rules.eval(env));
+    }
+
+    @Override
+    public boolean match(List<Node> arguments, Environment dynamicEnvironment) {
+        return arguments.isEmpty();
+    }
+
+    @Override
+    public Block apply(List<Node> arguments, Environment dynamicEnvironment) {
+        return _rules.eval(new AppendEnvironment(_lexicalEnvironment, dynamicEnvironment));
     }
 
     @Override
@@ -78,83 +74,40 @@ public class Ruleset extends NodeWithPosition {
     @Override
     public void printCSS(CssWriter out) {
         out.indent(this);
-        if (!isRoot()) {
-            for (int i = 0; i < _selectors.size(); i++) {
-                if (i > 0) {
-                    out.print(',');
-                    if (!out.isCompressionEnabled()) {
-                        if (_selectors.size() > 3) {
-                            out.newline();
-                            out.indent(this);
-                        } else {
-                            out.print(' ');
-                        }
+        for (int i = 0; i < _selectors.size(); i++) {
+            if (i > 0) {
+                out.print(',');
+                if (!out.isCompressionEnabled()) {
+                    if (_selectors.size() > 3) {
+                        out.newline();
+                        out.indent(this);
+                    } else {
+                        out.print(' ');
                     }
                 }
-                out.print(_selectors.get(i).toString().trim());
             }
+            out.print(_selectors.get(i).toString().trim());
+        }
+        if (!out.isCompressionEnabled()) {
             out.print(' ');
         }
+        printRules(out);
+    }
+
+    protected void printRules(CssWriter out) {
+        out.print('{');
+        out.newline();
+        out.beginScope();
         out.print(_rules);
+        out.endScope();
+        out.indent(this);
+        out.print('}');
+        out.newline();
     }
 
     @Override
     public DebugPrinter toDebugPrinter() {
         return new DebugPrinter("Ruleset", _selectors, _rules);
-    }
-
-    public boolean match(List<Node> arguments) {
-        return arguments.isEmpty();
-    }
-
-    public Map<String, Node> getVariables() {
-        if (_variables == null) {
-            _variables = new HashMap<String, Node>();
-            for (Node statement : _rules.getStatements()) {
-                if (statement instanceof Rule) {
-                    Rule rule = (Rule) statement;
-                    if (rule.getName() instanceof Variable) {
-                        _variables.put(((Variable) rule.getName()).getName(), rule.getValue());
-                    }
-                }
-            }
-        }
-        return _variables;
-    }
-
-    public List<Ruleset> getRulesets() {
-        if (_rulesets == null) {
-            _rulesets = new ArrayList<Ruleset>();
-            for (Node statement : _rules.getStatements()) {
-                if (statement instanceof Ruleset) {
-                    _rulesets.add((Ruleset) statement);
-                }
-            }
-        }
-        return _rulesets;
-    }
-
-    public List<Ruleset> findRulesets(List<Element> elements) {
-        List<Ruleset> rulesets = _lookups.get(elements);
-        if (rulesets == null) {
-            rulesets = new ArrayList<Ruleset>();
-            for (Ruleset ruleset : getRulesets()) {
-                if (ruleset != this) {
-                    for (Selector selector : ruleset.getSelectors()) {
-                        if (elements.get(0).getValue().equals(selector.getElements().get(0).getValue())) {
-                            if (elements.size() > 1) {
-                                rulesets.addAll(ruleset.findRulesets(elements.subList(1, elements.size())));
-                            } else {
-                                rulesets.add(ruleset);
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            _lookups.put(elements, rulesets);
-        }
-        return rulesets;
     }
 
     private List<Selector> joinSelectors(List<Selector> contexts, List<Selector> selectors) {
