@@ -39,6 +39,11 @@ public class MixinDefinition extends Ruleset {
     }
 
     @Override
+    public void flatten(List<Selector> contexts, List<Node> parentBlock, List<Node> globalBlock) {
+        // do nothing
+    }
+
+    @Override
     public Block apply(List<Node> arguments, Environment dynamicEnvironment) {
         List<Node> rules = new ArrayList<Node>();
         for (int i = 0; i < _parameters.size(); i++) {
@@ -82,7 +87,7 @@ public class MixinDefinition extends Ruleset {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         // for debugging only--MixinDefinitions are eval'ed away during normal use
         out.indent(this);
         out.print(_name);

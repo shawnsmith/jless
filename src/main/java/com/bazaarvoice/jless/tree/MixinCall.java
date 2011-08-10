@@ -47,7 +47,7 @@ public class MixinCall extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print(_selector);
         out.print('(');
         out.print(_arguments, ",", ", ");

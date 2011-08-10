@@ -23,7 +23,7 @@ public class Combinator extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         if (_value == null) /* do nothing */;
         else if ("".equals(_value)) /* do nothing */;
         else if (" ".equals(_value)) out.print(' ');

@@ -1,5 +1,6 @@
 package com.bazaarvoice.jless.tree;
 
+import com.bazaarvoice.jless.Importer;
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
@@ -10,40 +11,37 @@ import com.bazaarvoice.jless.parser.DebugPrinter;
 public class ImportFile extends NodeWithPosition {
 
     private final Node _location;
-    private final String _path;
     private final boolean _css;
+    private final Node _root;
 
-    public ImportFile(int position, Node location) {
+    public ImportFile(int position, Node location, Importer importer) {
         super(position);
         _location = location;
-        String path;
-        if (location instanceof Quoted) {
-            path = ((Quoted) location).getStringValue();
-            if (!(path.endsWith(".less") || path.endsWith(".css"))) {
-                path = path + ".less";
-            }
-        } else if (location instanceof Url) {
-            path = location.toString();
-        } else {
-            throw new IllegalArgumentException(location.toString());
+
+        String path = location.getStringValue();
+        if (!(path.endsWith(".less") || path.endsWith(".css"))) {
+            path = path + ".less";
         }
-        _path = path;
-        _css = path.endsWith(".css");
+        _css = path.endsWith(".css") || importer == null;
+
+        if (_css) {
+            _root = null;
+        } else {
+            _root = importer.parseImport(path).resultValue;
+        }
     }
 
     @Override
     public Node eval(Environment env) {
         if (_css) {
-            return new ImportFile(getPosition(), _location.eval(env));
+            return new ImportFile(getPosition(), _location.eval(env), null);
         } else {
-            // todo: evaluate the less file referenced by the import
-//            throw new UnsupportedOperationException();
-            return null;
+            return _root.eval(env);
         }
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.indent(this);
         out.print("@import ");
         out.print(_location);
@@ -53,6 +51,6 @@ public class ImportFile extends NodeWithPosition {
 
     @Override
     public DebugPrinter toDebugPrinter() {
-        return new DebugPrinter("ImportFile", _path, _css);
+        return new DebugPrinter("ImportFile", _location, _css, _root);
     }
 }

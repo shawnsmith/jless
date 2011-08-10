@@ -19,6 +19,7 @@
 
 package com.bazaarvoice.jless.parser;
 
+import com.bazaarvoice.jless.Importer;
 import com.bazaarvoice.jless.tree.Alpha;
 import com.bazaarvoice.jless.tree.Anonymous;
 import com.bazaarvoice.jless.tree.Block;
@@ -48,6 +49,7 @@ import com.bazaarvoice.jless.tree.Value;
 import com.bazaarvoice.jless.tree.Variable;
 import org.parboiled.BaseParser;
 import org.parboiled.Rule;
+import org.parboiled.annotations.Cached;
 import org.parboiled.support.Var;
 
 import java.util.ArrayList;
@@ -79,6 +81,12 @@ import java.util.Map;
  */
 @SuppressWarnings( {"InfiniteRecursion"})
 public class Parser extends BaseParser<Node> {
+
+    protected final Importer _importer;
+
+    public Parser(Importer importer) {
+        _importer = importer;
+    }
 
     // ********** Document **********
 
@@ -118,11 +126,11 @@ public class Parser extends BaseParser<Node> {
                                         Rule(),
                                         Ruleset(),
                                         MixinCall(),
-                                        Comment(),
+                                        Comment(true),
                                         Directive()
                                     ), add(statements, pop())
                                 ),
-                                Spacing()
+                                Whitespace()
                         )
                 ),
                 push(new Block(statements.get()))
@@ -130,28 +138,35 @@ public class Parser extends BaseParser<Node> {
     }
 
     // We create a Comment node for CSS comments `/* */`,
-    // but keep the LeSS comments `//` silent, by just skipping
+    // but keep the LESS comments `//` silent, by just skipping
     // over them.
-    Rule Comment() {
+    @Cached
+    Rule Comment(boolean block) {
+        Var<Integer> startIndex = new Var<Integer>();
         return Sequence(
                 Test('/'),  // for performance
+                startIndex.set(currentIndex()),
                 FirstOf(
                         // single line comment: '//' (!LB .)* LB Ws0
                         Sequence(
                                 // javascript regular expression: /^\/\/.*/
                                 Sequence("//", ZeroOrMore(TestNotEOL(), ANY), FirstOf('\n', "\r\n", '\r', EOI)),
-                                push(new Comment(match(), true))
+                                push(new Comment(startIndex.get(), match(), block, true))
                         ),
                         // multiline comment: '/*' (!'*\/' .)* '*\/' Ws0
                         Sequence(
                                 // javascript regular expression:   /^\/\*(?:[^*]|\*+[^\/*])*\*+\/\n?/
                                 // note: css spec uses this regex:  /^\/\*[^*]*\*+([^/*][^*]*\*+)*\//
                                 Sequence("/*", ZeroOrMore(TestNot("*/"), ANY), "*/"),
-                                push(new Comment(match(), false))
+                                push(new Comment(startIndex.get(), match(), block, false))
                         )
                 ),
-                OptionalSpacing()
+                OptionalWhitespace()
         );
+    }
+
+    Rule IgnorableComment() {
+        return Optional(Comment(false), drop());
     }
 
     //
@@ -165,7 +180,7 @@ public class Parser extends BaseParser<Node> {
                 Optional('~', escaped.set(true)),
                 CssString(),
                 push(new Quoted(match(), escaped.get())),
-                OptionalSpacing()
+                OptionalWhitespace()
         );
     }
 
@@ -179,7 +194,7 @@ public class Parser extends BaseParser<Node> {
         return Sequence(
                 CssIdent(),
                 push(new Keyword(match())),
-                OptionalSpacing()
+                OptionalWhitespace()
         );
     }
 
@@ -263,7 +278,7 @@ public class Parser extends BaseParser<Node> {
                                 // javascript regular expression: /^[-\w%@$\/.&=:;#+?~]+/
                                 OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-%@$/.&=:;#+?~")),
                                 push(new Anonymous(match())),
-                                OptionalSpacing()
+                                OptionalWhitespace()
                         )
                 ),
                 Terminal(')'),
@@ -282,11 +297,11 @@ public class Parser extends BaseParser<Node> {
                 // javascript regular expression: /^[^\/]+\/[^,;)]+/
                 Optional(OneOrMore(TestNot('/'), ANY), '/', OneOrMore(TestNot(AnyOf(",;)")), ANY)), mime.set(match()),
                 // javascript regular expression: /^;\s*charset=[^,;)]+/
-                Optional(';', OptionalSpacing(), "charset=", OneOrMore(TestNot(AnyOf(",;)")), ANY)), charset.set(match()),
+                Optional(';', OptionalWhitespace(), "charset=", OneOrMore(TestNot(AnyOf(",;)")), ANY)), charset.set(match()),
                 // javascript regular expression: /^;\s*base64/
-                Optional(';', OptionalSpacing(), "base64", OptionalSpacing()), encoding.set(match()),
+                Optional(';', OptionalWhitespace(), "base64", OptionalWhitespace()), encoding.set(match()),
                 // javascript regular expression: /^,\s*[^)]+/
-                Sequence(',', OptionalSpacing(), OneOrMore(TestNot(')'), ANY)), data.set(match()),
+                Sequence(',', OptionalWhitespace(), OneOrMore(TestNot(')'), ANY)), data.set(match()),
                 push(new DataUri(mime.get(), charset.get(), encoding.get(), data.get()))
         );
     }
@@ -303,7 +318,7 @@ public class Parser extends BaseParser<Node> {
                 // javascript regular expression: /^@@?[\w-]+/
                 Sequence('@', Optional('@'), WordOrDashChars()),
                 push(new Variable(match())),
-                OptionalSpacing()
+                OptionalWhitespace()
         );
     }
 
@@ -320,7 +335,7 @@ public class Parser extends BaseParser<Node> {
                 '#',
                 Sequence(HexChar(), HexChar(), HexChar(), Optional(HexChar(), HexChar(), HexChar())),
                 push(new Color(match())),
-                OptionalSpacing()
+                OptionalWhitespace()
         );
     }
 
@@ -341,7 +356,7 @@ public class Parser extends BaseParser<Node> {
                         )
                 ), unit.set(match()),
                 push(new Dimension(number.get(), unit.get())),
-                OptionalSpacing()
+                OptionalWhitespace()
         );
     }
 
@@ -359,7 +374,7 @@ public class Parser extends BaseParser<Node> {
                         '`', ZeroOrMore(Sequence(TestNot('`'), ANY)), '`'
                 ),
                 push(new Anonymous(match())),
-                OptionalSpacing()
+                OptionalWhitespace()
         );
     }
 
@@ -373,7 +388,7 @@ public class Parser extends BaseParser<Node> {
                 // javascript regular expression: /^(@[\w-]+)\s*:/
                 Sequence('@', WordOrDashChars()),
                 push(new Variable(match())),
-                OptionalSpacing(),
+                OptionalWhitespace(),
                 Terminal(':')
         );
     }
@@ -422,7 +437,7 @@ public class Parser extends BaseParser<Node> {
                         Sequence(
                                 Sequence(AnyOf(".#"), CssIdent()),
                                 add(elements, new Element(combinator.get(), match())),
-                                OptionalSpacing()
+                                OptionalWhitespace()
                         ),
                         Optional(Terminal('>')), combinator.set(match())
                 ),
@@ -475,7 +490,7 @@ public class Parser extends BaseParser<Node> {
                     CssIdent()
                 ),
                 name.set(match()),
-                OptionalSpacing(),
+                OptionalWhitespace(),
                 Terminal('('),
                 parameters.set(new ArrayList<MixinDefinitionParameter>()),
                 Optional(
@@ -526,7 +541,7 @@ public class Parser extends BaseParser<Node> {
                 EntitiesCall(),
                 EntitiesKeyword(),
                 EntitiesJavaScript(),
-                Comment()
+                Comment(false)
         );
     }
 
@@ -547,11 +562,11 @@ public class Parser extends BaseParser<Node> {
     Rule IEAlpha() {
         return Sequence(
                 // javascript regular expression: /^\(opacity=/i
-                Terminal('('), IgnoreCase("opacity"), OptionalSpacing(), Terminal('='),
+                Terminal('('), IgnoreCase("opacity"), OptionalWhitespace(), Terminal('='),
                 FirstOf(
                         Sequence(
                                 CssNum(), push(new Keyword(match())),
-                                OptionalSpacing()
+                                OptionalWhitespace()
                         ),
                         EntitiesVariable()
                 ),
@@ -566,7 +581,7 @@ public class Parser extends BaseParser<Node> {
     //     expression(document.body.scrollHeight + 'px')
     //
     Rule IEExpression() {
-        // note: this is in jLess, but not Less
+        // note: this is in jLess, but not LESS
         return Sequence(
                 BalancedParenthesis(),
                 push(new Anonymous("expression" + match()))
@@ -623,13 +638,13 @@ public class Parser extends BaseParser<Node> {
                                 Sequence(CssNum(), '%')
                         ),
                         push(new Element((Combinator) pop(), match())),
-                        OptionalSpacing()
+                        OptionalWhitespace()
                 ),
                 Sequence(
                         // special case for '&' combinators where the selector is optional
                         FirstOf("& ", '&'),
                         push(new Element(match(), null)),
-                        OptionalSpacing()
+                        OptionalWhitespace()
                 )
         );
     }
@@ -645,9 +660,9 @@ public class Parser extends BaseParser<Node> {
     //
     Rule Combinator() {
         return FirstOf(
-                Sequence(Sequence(AnyOf(">+~"), OptionalSpacing()), push(new Combinator(match()))),
-                Sequence(Sequence(FirstOf("& ", '&'), OptionalSpacing()), push(new Combinator(match()))),
-                Sequence(Sequence("::", OptionalSpacing()), push(new Combinator(match()))),
+                Sequence(Sequence(AnyOf(">+~"), OptionalWhitespace()), push(new Combinator(match()))),
+                Sequence(Sequence(FirstOf("& ", '&'), OptionalWhitespace()), push(new Combinator(match()))),
+                Sequence(Sequence("::", OptionalWhitespace()), push(new Combinator(match()))),
                 Sequence(new LookBehindCharMatcher(' '), push(new Combinator(" "))),
                 Sequence(EMPTY, push(new Combinator(null)))
         );
@@ -679,7 +694,7 @@ public class Parser extends BaseParser<Node> {
                 Terminal('['),
                 FirstOf(
                         // javascript regular expression: /^[a-zA-Z-]+/
-                        Sequence(AlphaOrDashChars(), OptionalSpacing()),
+                        Sequence(AlphaOrDashChars(), OptionalWhitespace()),
                         Sequence(EntitiesQuoted(), drop())
                 ),
                 Optional(
@@ -688,7 +703,7 @@ public class Parser extends BaseParser<Node> {
                         Terminal('='),
                         FirstOf(
                                 Sequence(EntitiesQuoted(), drop()),
-                                Sequence(WordOrDashChars(), OptionalSpacing())
+                                Sequence(WordOrDashChars(), OptionalWhitespace())
                         )
                 ),
                 Terminal(']')
@@ -721,22 +736,24 @@ public class Parser extends BaseParser<Node> {
                                 // javascript regular expression: /^([.#:% \w-]+)[\s\n]*\{/
                                 OneOrMore(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.#:% ")),
                                 add(selectors, new Selector(new Element("", match()))),
-                                OptionalSpacing(),
+                                OptionalWhitespace(),
                                 Test('{')
                         ),
                         Sequence(
                                 selectors.set(new ArrayList<Selector>()),
                                 Selector(), add(selectors, (Selector) pop()),
+                                IgnorableComment(),
                                 ZeroOrMore(
                                         Terminal(','),
-                                        Selector(), add(selectors, (Selector) pop())
-                                        // todo: js grammar has explicit comment handling in here
+                                        IgnorableComment(),
+                                        Selector(), add(selectors, (Selector) pop()),
+                                        IgnorableComment()
                                 )
                         )
                 ),
                 Block(),
                 push(new Ruleset(startIndex.get(), selectors.get(), (Block) pop())),
-                Optional(Terminal(';'))  // note: jLess allows this trailing semi-colon, Less does not.
+                Optional(Terminal(';'))  // note: jLess allows this trailing semi-colon, LESS does not.
         );
     }
 
@@ -786,10 +803,10 @@ public class Parser extends BaseParser<Node> {
         return Sequence(
                 startIndex.set(currentIndex()),
                 "@import",
-                Spacing(),
+                Whitespace(),
                 FirstOf(EntitiesQuoted(), EntitiesUrl()),
                 Terminal(';'),
-                push(new ImportFile(startIndex.get(), pop()))
+                push(new ImportFile(startIndex.get(), pop(), _importer))
         );
     }
 
@@ -809,8 +826,8 @@ public class Parser extends BaseParser<Node> {
                         ImportFile(),
                         Sequence(
                                 FirstOf("@media", "@page", "@-webkit-keyframes", "@keyframes"), name.set(match()),
-                                TestNot(AlphaOrDashChars()), // js less doesn't appear to require anything between the name and types, bug?
-                                OptionalSpacing(),
+                                TestNot(AlphaOrDashChars()), // LESS doesn't appear to require anything between the name and types, bug?
+                                OptionalWhitespace(),
                                 // javascript regular expression: /^[^{]+/
                                 ZeroOrMore(TestNot('{'), ANY), types.set(match().trim()),
                                 Block(),
@@ -818,7 +835,7 @@ public class Parser extends BaseParser<Node> {
                         ),
                         Sequence(
                                 '@', AlphaOrDashChars(), name.set("@" + match()),
-                                OptionalSpacing(),
+                                OptionalWhitespace(),
                                 FirstOf(
                                         Sequence(
                                                 "@font-face".equals(name.get()),
@@ -881,7 +898,7 @@ public class Parser extends BaseParser<Node> {
     }
 
     Rule Important() {
-        return Sequence('!', OptionalWhitespace(), "important", OptionalSpacing());
+        return Sequence('!', OptionalWhitespace(), "important", OptionalWhitespace());
     }
 
     Rule Sub() {
@@ -894,7 +911,7 @@ public class Parser extends BaseParser<Node> {
                 Operand(),
                 ZeroOrMore(
                         AnyOf("*/"), op.set(matchedChar()),
-                        Optional(Sequence(Whitespace(), OptionalSpacing())),  // comments must be separated from the operator by a space
+                        Optional(Sequence(Whitespace(), OptionalWhitespace())),  // comments must be separated from the operator by a space
                         Operand(),
                         swap(), push(new Operation(op.get(), pop(), pop()))
                 )
@@ -909,7 +926,7 @@ public class Parser extends BaseParser<Node> {
                         FirstOf(
                                 Sequence(
                                         AnyOf("-+"), op.set(matchedChar()),
-                                        Spacing()
+                                        Whitespace()
                                 ),
                                 Sequence(
                                         TestNot(new LookBehindCharMatcher(' ')),
@@ -967,7 +984,8 @@ public class Parser extends BaseParser<Node> {
                 // javascript regular expression: /^(\*?-?[-a-z_0-9]+)\s*:/
                 Sequence(Optional('*'), CssIdent()),
                 push(new Keyword(match())),
-                OptionalSpacing(),
+                OptionalWhitespace(),
+                IgnorableComment(),   // jLess allows comments here, LESS does not.
                 Terminal(':')
         );
     }
@@ -995,27 +1013,11 @@ public class Parser extends BaseParser<Node> {
     }
 
     Rule Terminal(char ch) {
-        return Sequence(ch, OptionalSpacing());
+        return Sequence(ch, OptionalWhitespace());
     }
 
     Rule Terminal(String string) {
-        return Sequence(string, OptionalSpacing());
-    }
-
-    Rule Spacing() {
-        return Sequence(
-                Test(AnyOf(" \t\r\n\f/")),  // for performance
-                OneOrMore(
-                        FirstOf(
-                                Whitespace(),
-                                Sequence(Comment(), drop())  // todo: this throws away the comment...
-                        )
-                )
-        );
-    }
-
-    Rule OptionalSpacing() {
-        return Optional(Spacing());
+        return Sequence(string, OptionalWhitespace());
     }
 
     // whitespace, as defined by the CSS specification
@@ -1046,45 +1048,45 @@ public class Parser extends BaseParser<Node> {
 
     // ********** Token Definitions from the CSS Specification **********
 
-// ident    [-]?{nmstart}{nmchar}*
-Rule CssIdent() {
-    return Sequence(Optional('-'), CssNmstart(), OptionalCssNmchars());
-}
+    // ident    [-]?{nmstart}{nmchar}*
+    Rule CssIdent() {
+        return Sequence(Optional('-'), CssNmstart(), OptionalCssNmchars());
+    }
 
-// nmstart  [_a-z]|{nonascii}|{escape}
-Rule CssNmstart() {
-    return FirstOf(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"), CssNonascii(), CssEscape());
-}
+    // nmstart  [_a-z]|{nonascii}|{escape}
+    Rule CssNmstart() {
+        return FirstOf(AnyOf("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"), CssNonascii(), CssEscape());
+    }
 
-// nmchar   [_a-z0-9-]|{nonascii}|{escape}
-Rule OptionalCssNmchars() {
-    return ZeroOrMore(FirstOf(WordOrDashChars(), CssNonascii(), CssEscape()));
-}
+    // nmchar   [_a-z0-9-]|{nonascii}|{escape}
+    Rule OptionalCssNmchars() {
+        return ZeroOrMore(FirstOf(WordOrDashChars(), CssNonascii(), CssEscape()));
+    }
 
-// nonascii [^\0-\237]
-Rule CssNonascii() {
-    return Sequence(TestNot(CharRange((char) 0, (char) 159)), ANY);
-}
+    // nonascii [^\0-\237]
+    Rule CssNonascii() {
+        return Sequence(TestNot(CharRange((char) 0, (char) 159)), ANY);
+    }
 
-// escape   {unicode}|\\[^\n\r\f0-9a-f]
-Rule CssEscape() {
-    return Sequence(
-            Test('\\'),  // for performance
-            FirstOf(
-                    CssUnicode(),
-                    Sequence('\\', Sequence(TestNot("\n\r\f"), ANY))
-            )
-    );
-}
+    // escape   {unicode}|\\[^\n\r\f0-9a-f]
+    Rule CssEscape() {
+        return Sequence(
+                Test('\\'),  // for performance
+                FirstOf(
+                        CssUnicode(),
+                        Sequence('\\', Sequence(TestNot("\n\r\f"), ANY))
+                )
+        );
+    }
 
-// unicode  \\[0-9a-f]{1,6}(\r\n|[ \n\r\t\f])?
-Rule CssUnicode() {
-    return Sequence(
-            '\\',
-            HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar()))))),
-            FirstOf("\r\n", AnyOf(" \n\r\t\f"), EMPTY)
-    );
-}
+    // unicode  \\[0-9a-f]{1,6}(\r\n|[ \n\r\t\f])?
+    Rule CssUnicode() {
+        return Sequence(
+                '\\',
+                HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar(), Optional(HexChar()))))),
+                FirstOf("\r\n", AnyOf(" \n\r\t\f"), EMPTY)
+        );
+    }
 
     // num    [0-9]+|[0-9]*\.[0-9]+
     Rule CssNum() {

@@ -18,7 +18,7 @@ public class DataUri extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print("data:");
         out.print(_mime);
         out.print(_charset);

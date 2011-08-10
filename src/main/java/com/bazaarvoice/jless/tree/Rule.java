@@ -4,6 +4,8 @@ import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
+import java.util.List;
+
 public class Rule extends NodeWithPosition {
 
     private final Node _name;
@@ -37,7 +39,15 @@ public class Rule extends NodeWithPosition {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void flatten(List<Selector> contexts, List<Node> parentBlock, List<Node> globalBlock) {
+        if (_name instanceof Variable) {
+            return;
+        }
+        parentBlock.add(this);
+    }
+
+    @Override
+    public void printCss(CssWriter out) {
         out.indent(this);
         out.print(_name);
         out.print(':');

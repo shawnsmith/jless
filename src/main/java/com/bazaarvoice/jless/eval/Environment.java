@@ -4,7 +4,6 @@ import com.bazaarvoice.jless.tree.Block;
 import com.bazaarvoice.jless.tree.Closure;
 import com.bazaarvoice.jless.tree.Element;
 import com.bazaarvoice.jless.tree.Node;
-import com.bazaarvoice.jless.tree.Ruleset;
 import com.google.common.base.Function;
 
 import java.util.List;

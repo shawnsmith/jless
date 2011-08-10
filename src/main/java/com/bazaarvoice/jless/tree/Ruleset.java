@@ -60,15 +60,15 @@ public class Ruleset extends NodeWithPosition implements Closure {
     }
 
     @Override
-    public Node flatten(List<Selector> contexts, List<Node> flattenedRulesets) {
+    public void flatten(List<Selector> contexts, List<Node> parentBlock, List<Node> globalBlock) {
         List<Selector> localContexts = joinSelectors(contexts, _selectors);
-        List<Node> childFlattenedRulesets = new ArrayList<Node>();
-        Block flattenedRules = _rules.flatten(localContexts, childFlattenedRulesets);
-        if (!flattenedRules.isEmpty()) {
-            flattenedRulesets.add(new Ruleset(getPosition(), localContexts, flattenedRules));
+        List<Node> currentBlock = new ArrayList<Node>();
+        List<Node> tempGlobalBlock = new ArrayList<Node>();
+        _rules.flatten(localContexts, currentBlock, tempGlobalBlock);
+        if (!currentBlock.isEmpty()) {
+            globalBlock.add(new Ruleset(getPosition(), localContexts, new Block(currentBlock)));
         }
-        flattenedRulesets.addAll(childFlattenedRulesets);
-        return null;
+        globalBlock.addAll(tempGlobalBlock);
     }
 
     private List<Selector> joinSelectors(List<Selector> contexts, List<Selector> selectors) {
@@ -106,7 +106,7 @@ public class Ruleset extends NodeWithPosition implements Closure {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.indent(this);
         for (int i = 0; i < _selectors.size(); i++) {
             if (i > 0) {

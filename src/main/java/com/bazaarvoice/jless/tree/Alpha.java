@@ -23,7 +23,7 @@ public class Alpha extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print("alpha(opacity=");
         out.print(_value);
         out.print(")");

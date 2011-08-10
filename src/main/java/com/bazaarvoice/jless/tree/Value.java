@@ -36,7 +36,7 @@ public class Value extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print(_value, ",", ", ");
     }
 

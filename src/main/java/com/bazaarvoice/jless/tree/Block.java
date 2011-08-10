@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class Block extends Node {
+public class Block extends Node implements Document {
 
     private final List<Node> _statements;
     private Map<String, Node> _variables;
@@ -53,29 +53,22 @@ public class Block extends Node {
         return new Block(results);
     }
 
+    @Override
     public Block flatten() {
-        List<Node> flattenedRulesets = new ArrayList<Node>();
-        flatten(Collections.singletonList(new Selector(true)), flattenedRulesets);
-        return new Block(flattenedRulesets);
+        List<Node> globalBlock = new ArrayList<Node>();
+        flatten(Collections.singletonList(new Selector(true)), globalBlock, globalBlock);
+        return new Block(globalBlock);
     }
 
     @Override
-    public Block flatten(List<Selector> contexts, List<Node> flattenedRulesets) {
-        if (isEmpty()) {
-            return this;
-        }
-        List<Node> results = new ArrayList<Node>(_statements.size());
+    public void flatten(List<Selector> contexts, List<Node> parentBlock, List<Node> globalBlock) {
         for (Node statement : _statements) {
-            statement = statement.flatten(contexts, flattenedRulesets);
-            if (statement != null) {
-                results.add(statement);
-            }
+            statement.flatten(contexts, parentBlock, globalBlock);
         }
-        return new Block(results);
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print(_statements, "", "");
     }
 

@@ -12,11 +12,11 @@ public abstract class Node {
         return this;
     }
 
-    public Node flatten(List<Selector> contexts, List<Node> flattenedRulesets) {
-        return this;
+    public void flatten(List<Selector> contexts, List<Node> parentBlock, List<Node> globalBlock) {
+        // do nothing by default.  subclasses override.
     }
 
-    public abstract void printCSS(CssWriter out);
+    public abstract void printCss(CssWriter out);
 
     public String getStringValue() {
         return toString();

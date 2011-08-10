@@ -3,13 +3,18 @@ package com.bazaarvoice.jless.tree;
 import com.bazaarvoice.jless.eval.CssWriter;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
-public class Comment extends Node {
+import java.util.List;
+
+public class Comment extends NodeWithPosition {
 
     private final String _value;
     private final boolean _silent;
+    private final boolean _block;
 
-    public Comment(String value, boolean silent) {
+    public Comment(int position, String value, boolean block, boolean silent) {
+        super(position);
         _value = value;
+        _block = block;
         _silent = silent;
     }
 
@@ -18,14 +23,23 @@ public class Comment extends Node {
         return _value;
     }
 
-    public boolean isSilent() {
-        return _silent;
+    @Override
+    public void flatten(List<Selector> contexts, List<Node> parentBlock, List<Node> globalBlock) {
+        if (!_silent) {
+            parentBlock.add(this);
+        }
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         if (!out.isCompressionEnabled()) {
+            if (_block) {
+                out.indent(this);
+            }
             out.print(_value);
+            if (_block && !_silent) {
+                out.newline();
+            }
         }
     }
 

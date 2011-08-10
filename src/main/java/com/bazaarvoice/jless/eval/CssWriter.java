@@ -68,7 +68,7 @@ public class CssWriter {
     }
 
     public void print(Node node) {
-        node.printCSS(this);
+        node.printCss(this);
     }
 
     public void print(Iterable<? extends Node> nodes, String compressedSeparator, String uncompressedSeparator) {
@@ -76,7 +76,7 @@ public class CssWriter {
         String nextSeparator = _compress ? compressedSeparator : uncompressedSeparator;
         for (Node node : nodes) {
             print(separator);
-            node.printCSS(this);
+            node.printCss(this);
             separator = nextSeparator;
         }
     }

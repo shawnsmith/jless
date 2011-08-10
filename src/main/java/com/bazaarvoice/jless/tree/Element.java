@@ -27,7 +27,7 @@ public class Element extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print(_combinator);
         out.print(_value);
     }

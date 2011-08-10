@@ -30,7 +30,7 @@ public class Expression extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print(_values, " ", " ");
     }
 

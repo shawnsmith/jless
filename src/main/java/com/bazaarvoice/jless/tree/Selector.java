@@ -38,7 +38,7 @@ public class Selector extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         for (Element element : _elements) {
             // note: js implementation has a check for typeof(e) === 'string', but it's never true?
             out.print(element);

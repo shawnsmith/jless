@@ -48,7 +48,7 @@ public class Dimension extends Node {
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print(getStringValue());
         out.print(_unit);
     }

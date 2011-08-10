@@ -5,7 +5,6 @@ import com.bazaarvoice.jless.eval.Environment;
 import com.bazaarvoice.jless.parser.DebugPrinter;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class Directive extends NodeWithPosition {
@@ -25,25 +24,18 @@ public class Directive extends NodeWithPosition {
     }
 
     @Override
-    public Node flatten(List<Selector> contexts, List<Node> flattenedRulesets) {
+    public void flatten(List<Selector> contexts, List<Node> parentBlock, List<Node> globalBlock) {
         if (_value instanceof Block) {
-            List<Node> directiveFlattenedRulesets = new ArrayList<Node>();
-            List<Node> childFlattenedRulesets = new ArrayList<Node>();
-            Block flattenedRules = ((Block) _value).flatten(contexts, childFlattenedRulesets);
-            if (!flattenedRules.isEmpty()) {
-                directiveFlattenedRulesets.addAll(flattenedRules.getStatements());
-            }
-            directiveFlattenedRulesets.addAll(childFlattenedRulesets);
-
-            flattenedRulesets.add(new Directive(getPosition(), _name, new Block(directiveFlattenedRulesets)));
+            List<Node> childBlock = new ArrayList<Node>();
+            _value.flatten(contexts, childBlock, childBlock);
+            globalBlock.add(new Directive(getPosition(), _name, new Block(childBlock)));
         } else {
-            flattenedRulesets.add(this);
+            globalBlock.add(this);
         }
-        return null;
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.indent(this);
         out.print(_name);
         if (_value instanceof Block) {

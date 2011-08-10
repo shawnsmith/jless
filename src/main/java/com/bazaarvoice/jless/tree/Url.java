@@ -16,12 +16,17 @@ public class Url extends Node {
     }
 
     @Override
+    public String getStringValue() {
+        return _src.getStringValue();
+    }
+
+    @Override
     public Node eval(Environment env) {
         return new Url(_src.eval(env));
     }
 
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         out.print("url(");
         out.print(_src);
         out.print(")");

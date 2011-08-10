@@ -71,7 +71,7 @@ public class Color extends Node {
     // Values are capped between `0` and `255`, rounded and zero-padded.
     //
     @Override
-    public void printCSS(CssWriter out) {
+    public void printCss(CssWriter out) {
         if (_alpha < 1.0) {
             // has alpha, must use rgba(r,g,b,a) function
             out.print("rgba(");
