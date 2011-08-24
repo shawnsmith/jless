@@ -18,7 +18,9 @@ public class Operation extends Node {
 
     @Override
     public Node eval(Environment env) {
-        Node a = _left.eval(env), b = _right.eval(env);
+        Node a = _left.eval(env);
+        Node b = _right.eval(env);
+
         if (a instanceof Dimension && b instanceof Color) {
             if (_op == '*' || _op == '+') {
                 Node temp = b;
@@ -28,6 +30,7 @@ public class Operation extends Node {
                 throw new OperationException("Can't substract or divide a color from a number");
             }
         }
+
         return a.operate(_op, b);
     }
 
